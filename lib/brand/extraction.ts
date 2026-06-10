@@ -89,6 +89,7 @@ export function extractColors(cssText: string, html = ""): string[] {
       isNeutral: boolean;
     }
   >();
+  const cssVariables = extractColorVariables(cssText);
 
   for (const match of html.matchAll(
     /<meta\s+[^>]*(?:name=["'](?:theme-color|msapplication-TileColor)["'][^>]*content=["']([^"']+)["']|content=["']([^"']+)["'][^>]*name=["'](?:theme-color|msapplication-TileColor)["'])[^>]*>/gi,
@@ -120,6 +121,22 @@ export function extractColors(cssText: string, html = ""): string[] {
     addParsedColor(candidates, cssText, match[0], match.index ?? 0);
   }
 
+  for (const match of cssText.matchAll(/var\(\s*(--[-\w]+)[^)]*\)/g)) {
+    const color = cssVariables.get(match[1]);
+
+    if (!color || color.alpha < 0.2) {
+      continue;
+    }
+
+    addColorCandidate(
+      candidates,
+      color.hex,
+      colorScore(cssText, match.index ?? 0),
+      match.index ?? 0,
+      isNeutralColor(color),
+    );
+  }
+
   const rankedColors = [...candidates.entries()].sort(
     ([hexA, colorA], [hexB, colorB]) =>
       colorB.score - colorA.score ||
@@ -131,6 +148,54 @@ export function extractColors(cssText: string, html = ""): string[] {
     .map(([hex]) => hex);
 
   return unique(nonNeutralColors).slice(0, 3);
+}
+
+function extractColorVariables(cssText: string) {
+  const rawVariables = new Map<string, string>();
+  const resolvedVariables = new Map<string, Color>();
+  const variableRegex = /(--[-\w]+)\s*:\s*([^;{}]+)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = variableRegex.exec(cssText))) {
+    const name = match[1];
+    const value = match[2].trim();
+
+    if (!isIgnoredColorVariable(name)) {
+      rawVariables.set(name, value);
+    }
+  }
+
+  for (const [name, value] of rawVariables) {
+    const color = resolveColorVariable(value, rawVariables);
+
+    if (color) {
+      resolvedVariables.set(name, color);
+    }
+  }
+
+  return resolvedVariables;
+}
+
+function isIgnoredColorVariable(name: string) {
+  return /^--framer-link(?:-[\w-]+)?-text-color$/.test(name);
+}
+
+function resolveColorVariable(value: string, rawVariables: Map<string, string>) {
+  const directColor = parseCssColor(value);
+
+  if (directColor) {
+    return directColor;
+  }
+
+  const variableReference = value.match(/^var\(\s*(--[-\w]+)\s*\)$/);
+
+  if (!variableReference) {
+    return null;
+  }
+
+  const referencedValue = rawVariables.get(variableReference[1]);
+
+  return referencedValue ? parseCssColor(referencedValue) : null;
 }
 
 export function extractFont(cssText: string): BrandTokens["font"] {
@@ -360,6 +425,10 @@ function addColorCandidate(
   index: number,
   isNeutral: boolean,
 ) {
+  if (score <= 0) {
+    return;
+  }
+
   const existing = candidates.get(hex);
 
   if (!existing) {
@@ -381,6 +450,10 @@ function colorScore(cssText: string, index: number) {
   const selector = selectorContext(cssText, index);
   const context = `${selector} ${declaration}`;
   let score = 3;
+
+  if (/--framer-link(?:-[\w-]+)?-text-color\s*:/.test(declaration)) {
+    return 0;
+  }
 
   if (/--[^:{;}]*(primary|main|cta)/.test(declaration)) {
     score += 4;

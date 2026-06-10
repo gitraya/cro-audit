@@ -103,6 +103,67 @@ test("extractColors lets repeated painted usage beat one named variable", () => 
   );
 });
 
+test("extractColors counts usage through color custom properties", () => {
+  const primaryUsage = Array.from(
+    { length: 30 },
+    (_, index) => `.btn-${index}, .hero-${index}, .nav-${index} { background: var(--primary); }`,
+  ).join("\n");
+  const accentUsage = Array.from(
+    { length: 5 },
+    (_, index) => `.badge-${index} { background: #ff5722; }`,
+  ).join("\n");
+
+  assert.deepEqual(
+    extractColors(`
+      :root {
+        --primary: #1a73e8;
+        --accent: #ff5722;
+      }
+      ${primaryUsage}
+      ${accentUsage}
+    `),
+    ["#1a73e8", "#ff5722"],
+  );
+});
+
+test("extractColors resolves one level of color variable indirection", () => {
+  assert.deepEqual(
+    extractColors(`
+      :root {
+        --brand-blue: #1a73e8;
+        --primary: var(--brand-blue);
+      }
+      .hero { background: var(--primary); }
+    `),
+    ["#1a73e8"],
+  );
+});
+
+test("extractColors ignores Framer default link blue placeholders", () => {
+  const defaultLinkBlue = Array.from(
+    { length: 7 },
+    (_, index) => `
+      .framer-link-${index} {
+        --framer-link-text-color: ${index % 2 === 0 ? "#09f" : "rgb(0, 153, 255)"};
+        color: var(--framer-link-text-color);
+      }
+    `,
+  ).join("\n");
+
+  assert.deepEqual(
+    extractColors(`
+      body {
+        --token-primary-blue: #003af2;
+      }
+      .framer-brand-link {
+        --framer-link-hover-text-color: var(--token-primary-blue, #003af2);
+      }
+      ${defaultLinkBlue}
+    `),
+    ["#003af2"],
+  );
+});
+
 test("extractFont deterministically returns primary and fallback brand fonts", () => {
   const cssText = `
     :root { --font-sans: "Space Grotesk", Inter, Arial, sans-serif; }
