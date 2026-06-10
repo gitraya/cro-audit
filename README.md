@@ -8,7 +8,7 @@ A web application that performs Conversion Rate Optimization audits on any homep
 
 ## Live Demo
 
-- **Application URL:** [FILL IN — your Vercel URL]
+- **Application URL:** https://monolitlabs.ai.raya.bio
 - **Test accounts:**
   - `[FILL IN email 1]` / `[FILL IN password 1]`
   - `[FILL IN email 2]` / `[FILL IN password 2]`
