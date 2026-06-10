@@ -276,9 +276,8 @@ function isFontFamilyDeclaration(property: string) {
   }
 
   return (
-    /\bfont-(family|sans|serif|mono|display|body|heading|headings|primary|secondary)\b/.test(
-      property,
-    ) ||
+    /^--font-(sans|serif|mono)$/.test(property) ||
+    /\bfont-family\b/.test(property) ||
     /\b(family|typeface|typography)\b/.test(property)
   );
 }

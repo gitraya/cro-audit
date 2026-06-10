@@ -190,6 +190,8 @@ test("extractFont ignores font size and weight variables", () => {
       --font-size-xl: 2.125rem;
       --font-size-2xl: 2.5rem;
       --font-weight-light: 300;
+      --hds-font-heading-md-letterSpacing: -0.01em;
+      --hds-font-heading-hero-sm-size: 2rem;
       --font-sans: sohne-var, "Helvetica Neue", Arial, sans-serif;
     }
     body { font-family: sohne-var, "Helvetica Neue", sans-serif; }
