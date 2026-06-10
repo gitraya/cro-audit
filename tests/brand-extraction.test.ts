@@ -244,7 +244,7 @@ test("extractBrandTokens preserves empty provider tone", async () => {
   assert.equal(tokens.voice.tone, "");
 });
 
-test("extractBrandTokens persists only brand identity and caches voice by URL", async () => {
+test("extractBrandTokens persists only brand identity and tolerates unavailable voice cache", async () => {
   const scraped = createScrapedHomepage();
   let providerCalls = 0;
   const firstTokens = await extractBrandTokens(scraped, async () => {
@@ -266,8 +266,10 @@ test("extractBrandTokens persists only brand identity and caches voice by URL", 
     };
   });
 
-  assert.equal(providerCalls, 1);
-  assert.deepEqual(firstTokens, secondTokens);
+  assert.equal(providerCalls, 2);
+  assert.deepEqual(firstTokens.colors, secondTokens.colors);
+  assert.deepEqual(firstTokens.font, secondTokens.font);
+  assert.deepEqual(firstTokens.extraction_method, secondTokens.extraction_method);
   assert.deepEqual(Object.keys(firstTokens), [
     "colors",
     "font",

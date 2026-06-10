@@ -1,4 +1,5 @@
 import type { ScrapedHomepage } from "../scraper/homepage.ts";
+import { readCachedVoice, writeCachedVoice } from "./voice-cache.ts";
 
 export type BrandTokens = {
   colors: string[];
@@ -54,7 +55,6 @@ const GENERIC_FONT_FAMILIES = new Set([
 ]);
 const ICON_FONT_PATTERN =
   /(^|\s)(fontawesome|font awesome|icomoon|ionicons|material icons|octicons)(\s|$)/i;
-const voiceCache = new Map<string, VoiceTokens>();
 
 export async function extractBrandTokens(
   scraped: ScrapedHomepage,
@@ -297,10 +297,10 @@ export async function extractVoice(
   voiceProvider?: VoiceProvider,
 ): Promise<VoiceTokens> {
   const cacheKey = normalizedCacheKey(scraped.finalUrl || scraped.requestedUrl);
-  const cachedVoice = voiceCache.get(cacheKey);
+  const cachedVoice = await readVoiceFromCache(cacheKey);
 
   if (cachedVoice) {
-    return cachedVoice;
+    return normalizeVoiceTokens(cachedVoice);
   }
 
   const voice = voiceProvider
@@ -314,8 +314,25 @@ export async function extractVoice(
     : extractVoiceDeterministically(scraped);
   const normalizedVoice = normalizeVoiceTokens(voice);
 
-  voiceCache.set(cacheKey, normalizedVoice);
+  await writeVoiceToCache(cacheKey, normalizedVoice);
   return normalizedVoice;
+}
+
+async function readVoiceFromCache(cacheKey: string) {
+  try {
+    return await readCachedVoice(cacheKey);
+  } catch (error) {
+    console.warn("Brand voice cache read failed", error);
+    return null;
+  }
+}
+
+async function writeVoiceToCache(cacheKey: string, voice: VoiceTokens) {
+  try {
+    await writeCachedVoice(cacheKey, voice);
+  } catch (error) {
+    console.warn("Brand voice cache write failed", error);
+  }
 }
 
 function extractVoiceDeterministically(scraped: ScrapedHomepage): VoiceTokens {
