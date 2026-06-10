@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm test && npm run build",
+  "installCommand": "npm ci"
+}
