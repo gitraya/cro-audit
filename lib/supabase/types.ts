@@ -1,0 +1,131 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type AuditStatus = "queued" | "running" | "completed" | "failed";
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey";
+            columns: ["id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      audits: {
+        Row: {
+          id: string;
+          user_id: string;
+          url: string;
+          status: AuditStatus;
+          brand_tokens: Json | null;
+          pagespeed_data: Json | null;
+          findings: Json | null;
+          generated_html: string | null;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          url: string;
+          status?: AuditStatus;
+          brand_tokens?: Json | null;
+          pagespeed_data?: Json | null;
+          findings?: Json | null;
+          generated_html?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          url?: string;
+          status?: AuditStatus;
+          brand_tokens?: Json | null;
+          pagespeed_data?: Json | null;
+          findings?: Json | null;
+          generated_html?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audits_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      book_principles: {
+        Row: {
+          id: string;
+          book_title: string;
+          principle_name: string;
+          content: string;
+          embedding: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          book_title: string;
+          principle_name: string;
+          content: string;
+          embedding?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          book_title?: string;
+          principle_name?: string;
+          content?: string;
+          embedding?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      audit_status: AuditStatus;
+    };
+    CompositeTypes: Record<string, never>;
+  };
+};

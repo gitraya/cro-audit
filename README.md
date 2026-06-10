@@ -33,8 +33,8 @@ Both accounts come pre-loaded with example audits in their history.
 | Layer        | Choice                                              |
 | ------------ | --------------------------------------------------- |
 | Framework    | Next.js App Router with TypeScript and Tailwind CSS |
-| Database     | [FILL IN — e.g. PostgreSQL + pgvector via Supabase] |
-| Auth         | [FILL IN — e.g. Supabase Auth]                      |
+| Database     | Supabase PostgreSQL with pgvector                   |
+| Auth         | Supabase Auth                                       |
 | LLM provider | [FILL IN — e.g. Claude / Anthropic]                 |
 | Scraping     | [FILL IN — e.g. Cheerio]                            |
 | External API | [FILL IN — e.g. Google PageSpeed Insights]          |
@@ -56,7 +56,13 @@ URL → Scrape → Brand Extraction → External API → Grounded Audit → Home
 
 ### Data model
 
-[FILL IN — describe your `audits` table and `book_principles` table, or paste a short schema.]
+The initial Supabase migration creates:
+
+- `profiles`: app-owned user profile rows linked to `auth.users`
+- `audits`: user-owned audit records with `status`, `brand_tokens`, `pagespeed_data`, `findings`, and `generated_html`
+- `book_principles`: seeded CRO/UX principles with pgvector embeddings for balanced retrieval
+
+Row-level security is enabled so users can only read and mutate their own profile and audit rows. Authenticated users can read `book_principles`.
 
 ---
 
@@ -122,12 +128,16 @@ cd [FILL IN]
 npm install
 
 # 3. Environment variables
-cp .env.example .env
+cp .env.example .env.local
 # Fill in:
-#   [FILL IN — e.g. ANTHROPIC_API_KEY, DATABASE_URL, PAGESPEED_API_KEY, auth secrets]
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+#   SUPABASE_DB_URL
 
 # 4. Database setup
-[FILL IN — migrations, enabling pgvector, seeding book principles]
+# Run supabase/migrations/001_initial_schema.sql in Supabase SQL Editor
+# or apply it locally with psql.
+npm run db:migrate
 
 # 5. Run
 npm run dev
@@ -140,6 +150,7 @@ npm run dev
 npm run build
 npm run lint
 npm test
+npm run db:migrate
 ```
 
 > All API keys are read from environment variables. No keys are committed to the repository.

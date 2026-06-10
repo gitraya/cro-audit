@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-50 text-neutral-950">
@@ -27,6 +29,20 @@ export default function Home() {
               deterministic brand extraction, PageSpeed data, grounded audit
               generation, homepage replication, and persistence.
             </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/dashboard"
+                className="bg-neutral-950 px-5 py-3 text-sm font-medium text-white"
+              >
+                Open dashboard
+              </Link>
+              <Link
+                href="/login"
+                className="border border-neutral-300 bg-white px-5 py-3 text-sm font-medium"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
 
           <div className="border border-neutral-200 bg-white p-6 shadow-sm">
@@ -36,18 +52,17 @@ export default function Home() {
             <ol className="mt-5 space-y-4 text-sm leading-6 text-neutral-600">
               <li>
                 <span className="font-medium text-neutral-950">1.</span>{" "}
-                Build authentication and audit history around a persisted data
-                model.
+                Supabase Auth protects the dashboard and audit detail routes.
               </li>
               <li>
                 <span className="font-medium text-neutral-950">2.</span>{" "}
-                Keep scraper, brand extraction, PageSpeed parsing, retrieval,
-                and LLM helpers independently testable.
+                User profiles, audit history, and RAG principles are modeled in
+                Postgres with RLS.
               </li>
               <li>
                 <span className="font-medium text-neutral-950">3.</span>{" "}
-                Render generated homepages with extracted brand tokens and
-                traceable CRO findings.
+                `/api/user` and `/api/audits` expose authenticated data for the
+                app workflow.
               </li>
             </ol>
           </div>
