@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { scrapeHomepage } from "@/lib/scraper/homepage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function createAudit(formData: FormData) {
@@ -21,13 +22,24 @@ export async function createAudit(formData: FormData) {
     redirect("/login");
   }
 
+  let scrapedPage;
+
+  try {
+    scrapedPage = await scrapeHomepage(url);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Scrape failed";
+    redirect(`/dashboard?error=${encodeURIComponent(message)}`);
+  }
+
   const { data, error } = await supabase
     .from("audits")
     .insert({
       user_id: user.id,
-      url,
+      url: scrapedPage.requestedUrl,
       status: "queued",
-      brand_tokens: null,
+      brand_tokens: {
+        scrape: scrapedPage,
+      },
       pagespeed_data: null,
       findings: null,
       generated_html: null,

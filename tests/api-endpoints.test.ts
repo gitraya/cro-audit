@@ -4,6 +4,7 @@ import {
   createAuditEndpoint,
   getAuditsEndpoint,
 } from "../lib/api/audits.ts";
+import type { ScrapedHomepage } from "../lib/scraper/homepage.ts";
 import { getUserEndpoint } from "../lib/api/user.ts";
 
 const authenticatedUser = {
@@ -111,10 +112,13 @@ test("POST /api/audits returns 400 when URL is missing", async () => {
 });
 
 test("POST /api/audits creates a queued audit with the authenticated user id", async () => {
+  const scrape = createScrapedHomepage({
+    requestedUrl: "https://example.com/",
+  });
   const audit = {
     id: "audit-1",
     user_id: authenticatedUser.id,
-    url: "https://example.com",
+    url: scrape.requestedUrl,
     status: "queued",
   };
   const client = createAuditsClient({
@@ -124,15 +128,32 @@ test("POST /api/audits creates a queued audit with the authenticated user id", a
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "  https://example.com  " }),
     client,
+    async () => scrape,
   );
 
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), { audit });
   assert.deepEqual(client.calls.insert, {
     user_id: authenticatedUser.id,
-    url: "https://example.com",
+    url: scrape.requestedUrl,
     status: "queued",
+    brand_tokens: {
+      scrape,
+    },
   });
+});
+
+test("POST /api/audits returns 422 when scraping fails", async () => {
+  const response = await createAuditEndpoint(
+    createJsonRequest({ url: "https://example.com" }),
+    createAuditsClient({ user: authenticatedUser }),
+    async () => {
+      throw new Error("Failed to fetch page: 404");
+    },
+  );
+
+  assert.equal(response.status, 422);
+  assert.deepEqual(await response.json(), { error: "Failed to fetch page: 404" });
 });
 
 test("POST /api/audits returns 500 when audit insert fails", async () => {
@@ -142,6 +163,7 @@ test("POST /api/audits returns 500 when audit insert fails", async () => {
       user: authenticatedUser,
       insertError: { message: "insert failed" },
     }),
+    async () => createScrapedHomepage(),
   );
 
   assert.equal(response.status, 500);
@@ -213,6 +235,9 @@ function createAuditsClient(options: {
       user_id: string;
       url: string;
       status: "queued";
+      brand_tokens: {
+        scrape: ScrapedHomepage;
+      };
     };
   } = {};
 
@@ -241,7 +266,14 @@ function createAuditsClient(options: {
             },
           };
         },
-        insert(values: { user_id: string; url: string; status: "queued" }) {
+        insert(values: {
+          user_id: string;
+          url: string;
+          status: "queued";
+          brand_tokens: {
+            scrape: ScrapedHomepage;
+          };
+        }) {
           calls.insert = values;
 
           return {
@@ -261,5 +293,31 @@ function createAuditsClient(options: {
         },
       };
     },
+  };
+}
+
+function createScrapedHomepage(
+  overrides: Partial<ScrapedHomepage> = {},
+): ScrapedHomepage {
+  return {
+    requestedUrl: "https://example.com/",
+    finalUrl: "https://example.com/",
+    title: "Example",
+    description: "Example description",
+    canonicalUrl: "https://example.com/",
+    headings: {
+      h1: ["Example"],
+      h2: [],
+      h3: [],
+    },
+    bodyText: "Example body",
+    links: [],
+    images: [],
+    styles: {
+      inlineStyleCount: 0,
+      stylesheetHrefs: [],
+      cssText: "",
+    },
+    ...overrides,
   };
 }
