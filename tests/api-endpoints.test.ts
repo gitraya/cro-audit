@@ -4,6 +4,7 @@ import {
   createAuditEndpoint,
   getAuditsEndpoint,
 } from "../lib/api/audits.ts";
+import type { BrandTokens } from "../lib/brand/extraction.ts";
 import type { ScrapedHomepage } from "../lib/scraper/homepage.ts";
 import { getUserEndpoint } from "../lib/api/user.ts";
 
@@ -137,10 +138,11 @@ test("POST /api/audits creates a queued audit with the authenticated user id", a
     user_id: authenticatedUser.id,
     url: scrape.requestedUrl,
     status: "queued",
-    brand_tokens: {
-      scrape,
-    },
+    brand_tokens: expectedBrandTokens,
   });
+  assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /scrape/);
+  assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /bodyText/);
+  assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /html/);
 });
 
 test("POST /api/audits returns 422 when scraping fails", async () => {
@@ -235,9 +237,7 @@ function createAuditsClient(options: {
       user_id: string;
       url: string;
       status: "queued";
-      brand_tokens: {
-        scrape: ScrapedHomepage;
-      };
+      brand_tokens: BrandTokens;
     };
   } = {};
 
@@ -270,9 +270,7 @@ function createAuditsClient(options: {
           user_id: string;
           url: string;
           status: "queued";
-          brand_tokens: {
-            scrape: ScrapedHomepage;
-          };
+          brand_tokens: BrandTokens;
         }) {
           calls.insert = values;
 
@@ -300,11 +298,12 @@ function createScrapedHomepage(
   overrides: Partial<ScrapedHomepage> = {},
 ): ScrapedHomepage {
   return {
-    requestedUrl: "https://example.com/",
-    finalUrl: "https://example.com/",
+    requestedUrl: "https://api.example.com/",
+    finalUrl: "https://api.example.com/",
+    html: "<!doctype html><html><head><title>Example</title></head><body>Example body</body></html>",
     title: "Example",
     description: "Example description",
-    canonicalUrl: "https://example.com/",
+    canonicalUrl: "https://api.example.com/",
     headings: {
       h1: ["Example"],
       h2: [],
@@ -316,8 +315,37 @@ function createScrapedHomepage(
     styles: {
       inlineStyleCount: 0,
       stylesheetHrefs: [],
-      cssText: "",
+      externalStylesheetCount: 0,
+      cssText: `
+        :root {
+          --brand-primary: #0f766e;
+          --brand-secondary: #7c3aed;
+          --brand-accent: #f97316;
+          --font-sans: "Space Grotesk", Inter, sans-serif;
+        }
+      `,
     },
     ...overrides,
   };
 }
+
+const expectedBrandTokens: BrandTokens = {
+  colors: ["#0f766e", "#7c3aed", "#f97316"],
+  font: {
+    primary: "Space Grotesk",
+    fallbacks: ["Inter"],
+  },
+  voice: {
+    tone: "",
+    formality: "neutral",
+    phrases: ["Example", "Example description"],
+  },
+  extraction_method: {
+    colors:
+      "Deterministic CSS parser ranks real CSS and theme metadata colors, filters transparent and neutral values, and returns up to 3 found hex values with no invented fallbacks.",
+    font:
+      "Deterministic CSS parser ranks real font-family declarations from CSS variables, document root, and body-level rules; generic and icon fonts are excluded and no font is invented.",
+    voice:
+      "URL-cached deterministic voice extraction from title, meta description, headings, and body copy; no LLM provider configured and no defaults are invented.",
+  },
+};

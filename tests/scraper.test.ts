@@ -61,5 +61,51 @@ test("parseHomepage extracts structured homepage data with Cheerio", () => {
   assert.deepEqual(scraped.styles.stylesheetHrefs, [
     "https://example.com/styles.css",
   ]);
+  assert.equal(scraped.styles.externalStylesheetCount, 0);
   assert.match(scraped.styles.cssText, /--brand: #112233/);
+  assert.match(scraped.styles.cssText, /color: #112233/);
+  assert.doesNotMatch(JSON.stringify(scraped), /brandTokens/);
+});
+
+test("parseHomepage folds external stylesheet CSS into transient scrape data", () => {
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <title>External Styles</title>
+        <link rel="preload" as="style" href="/assets/site.css">
+      </head>
+      <body>
+        <h1>Build better funnels</h1>
+      </body>
+    </html>
+  `;
+  const externalStylesheets = [
+    {
+      href: "https://example.com/assets/site.css",
+      cssText: `
+        :root {
+          --brand-primary: #0f766e;
+          --brand-secondary: #7c3aed;
+          --brand-accent: #f97316;
+        }
+        body { font-family: "Space Grotesk", Arial, sans-serif; }
+        .button { background: var(--brand-primary); color: #ffffff; }
+      `,
+    },
+  ];
+
+  const scraped = parseHomepage(
+    html,
+    "https://example.com",
+    "https://example.com/",
+    { externalStylesheets },
+  );
+
+  assert.deepEqual(scraped.styles.stylesheetHrefs, [
+    "https://example.com/assets/site.css",
+  ]);
+  assert.equal(scraped.styles.externalStylesheetCount, 1);
+  assert.match(scraped.styles.cssText, /--brand-primary: #0f766e/);
+  assert.doesNotMatch(JSON.stringify(scraped), /brandTokens/);
 });

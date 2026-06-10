@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { extractBrandTokens } from "@/lib/brand/extraction";
 import { scrapeHomepage } from "@/lib/scraper/homepage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -23,9 +24,11 @@ export async function createAudit(formData: FormData) {
   }
 
   let scrapedPage;
+  let brandTokens;
 
   try {
     scrapedPage = await scrapeHomepage(url);
+    brandTokens = await extractBrandTokens(scrapedPage);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scrape failed";
     redirect(`/dashboard?error=${encodeURIComponent(message)}`);
@@ -37,9 +40,7 @@ export async function createAudit(formData: FormData) {
       user_id: user.id,
       url: scrapedPage.requestedUrl,
       status: "queued",
-      brand_tokens: {
-        scrape: scrapedPage,
-      },
+      brand_tokens: brandTokens,
       pagespeed_data: null,
       findings: null,
       generated_html: null,

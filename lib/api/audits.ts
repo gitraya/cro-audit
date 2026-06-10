@@ -1,4 +1,5 @@
 import { jsonResponse } from "./responses.ts";
+import { extractBrandTokens, type BrandTokens } from "../brand/extraction.ts";
 import { scrapeHomepage, type ScrapedHomepage } from "../scraper/homepage.ts";
 
 type EndpointUser = {
@@ -31,9 +32,7 @@ type EndpointSupabaseClient = {
       user_id: string;
       url: string;
       status: "queued";
-      brand_tokens: {
-        scrape: ScrapedHomepage;
-      };
+      brand_tokens: BrandTokens;
     }) => {
       select: (columns: string) => {
         single: () => QueryResult<unknown>;
@@ -80,9 +79,11 @@ export async function createAuditEndpoint(
   }
 
   let scrapedPage: ScrapedHomepage;
+  let brandTokens: BrandTokens;
 
   try {
     scrapedPage = await scraper(url);
+    brandTokens = await extractBrandTokens(scrapedPage);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scrape failed";
     return jsonResponse({ error: message }, { status: 422 });
@@ -94,9 +95,7 @@ export async function createAuditEndpoint(
       user_id: user.id,
       url: scrapedPage.requestedUrl,
       status: "queued",
-      brand_tokens: {
-        scrape: scrapedPage,
-      },
+      brand_tokens: brandTokens,
     })
     .select("*")
     .single();
