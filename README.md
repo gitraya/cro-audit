@@ -32,7 +32,7 @@ Both accounts come pre-loaded with example audits in their history.
 
 | Layer        | Choice                                              |
 | ------------ | --------------------------------------------------- |
-| Framework    | [FILL IN — e.g. Next.js App Router]                 |
+| Framework    | Next.js App Router with TypeScript and Tailwind CSS |
 | Database     | [FILL IN — e.g. PostgreSQL + pgvector via Supabase] |
 | Auth         | [FILL IN — e.g. Supabase Auth]                      |
 | LLM provider | [FILL IN — e.g. Claude / Anthropic]                 |
@@ -119,7 +119,7 @@ git clone [FILL IN repo URL]
 cd [FILL IN]
 
 # 2. Install
-[FILL IN — e.g. npm install]
+npm install
 
 # 3. Environment variables
 cp .env.example .env
@@ -130,7 +130,16 @@ cp .env.example .env
 [FILL IN — migrations, enabling pgvector, seeding book principles]
 
 # 5. Run
-[FILL IN — e.g. npm run dev]
+npm run dev
+```
+
+Current project commands:
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npm test
 ```
 
 > All API keys are read from environment variables. No keys are committed to the repository.
