@@ -12,6 +12,7 @@
     "db:migrate": "set -a; . ./.env.local; set +a; if [ -z \"$SUPABASE_DB_URL\" ]; then echo \"Missing SUPABASE_DB_URL in .env.local\"; exit 1; fi; psql \"$SUPABASE_DB_URL\" -f supabase/migrations/001_initial_schema.sql"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
     "cheerio": "^1.2.0",

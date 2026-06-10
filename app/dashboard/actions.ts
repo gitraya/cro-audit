@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { extractBrandTokens } from "@/lib/brand/extraction";
+import { createGeminiVoiceProvider } from "@/lib/brand/voice/gemini-provider";
 import { scrapeHomepage } from "@/lib/scraper/homepage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -28,7 +29,10 @@ export async function createAudit(formData: FormData) {
 
   try {
     scrapedPage = await scrapeHomepage(url);
-    brandTokens = await extractBrandTokens(scrapedPage);
+    brandTokens = await extractBrandTokens(
+      scrapedPage,
+      createGeminiVoiceProvider(),
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scrape failed";
     redirect(`/dashboard?error=${encodeURIComponent(message)}`);

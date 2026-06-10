@@ -1,5 +1,9 @@
 import { jsonResponse } from "./responses.ts";
-import { extractBrandTokens, type BrandTokens } from "../brand/extraction.ts";
+import {
+  extractBrandTokens,
+  type BrandTokens,
+  type VoiceProvider,
+} from "../brand/extraction.ts";
 import { scrapeHomepage, type ScrapedHomepage } from "../scraper/homepage.ts";
 
 type EndpointUser = {
@@ -64,6 +68,7 @@ export async function createAuditEndpoint(
   request: Request,
   supabase: EndpointSupabaseClient,
   scraper: (url: string) => Promise<ScrapedHomepage> = scrapeHomepage,
+  voiceProvider?: VoiceProvider,
 ) {
   const user = await getAuthenticatedUser(supabase);
 
@@ -83,7 +88,7 @@ export async function createAuditEndpoint(
 
   try {
     scrapedPage = await scraper(url);
-    brandTokens = await extractBrandTokens(scrapedPage);
+    brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scrape failed";
     return jsonResponse({ error: message }, { status: 422 });
