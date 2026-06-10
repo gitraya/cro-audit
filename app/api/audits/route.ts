@@ -1,4 +1,5 @@
 import { createAuditEndpoint, getAuditsEndpoint } from "@/lib/api/audits";
+import { createGeminiVoiceProvider } from "@/lib/brand/voice/gemini-provider";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -16,5 +17,10 @@ export async function POST(request: Request) {
     typeof createAuditEndpoint
   >[1];
 
-  return createAuditEndpoint(request, endpointClient);
+  return createAuditEndpoint(
+    request,
+    endpointClient,
+    undefined,
+    createGeminiVoiceProvider(),
+  );
 }

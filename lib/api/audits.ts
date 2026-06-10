@@ -1,4 +1,10 @@
 import { jsonResponse } from "./responses.ts";
+import {
+  extractBrandTokens,
+  type BrandTokens,
+  type VoiceProvider,
+} from "../brand/extraction.ts";
+import { scrapeHomepage, type ScrapedHomepage } from "../scraper/homepage.ts";
 
 type EndpointUser = {
   id: string;
@@ -30,6 +36,7 @@ type EndpointSupabaseClient = {
       user_id: string;
       url: string;
       status: "queued";
+      brand_tokens: BrandTokens;
     }) => {
       select: (columns: string) => {
         single: () => QueryResult<unknown>;
@@ -60,6 +67,8 @@ export async function getAuditsEndpoint(supabase: EndpointSupabaseClient) {
 export async function createAuditEndpoint(
   request: Request,
   supabase: EndpointSupabaseClient,
+  scraper: (url: string) => Promise<ScrapedHomepage> = scrapeHomepage,
+  voiceProvider?: VoiceProvider,
 ) {
   const user = await getAuthenticatedUser(supabase);
 
@@ -74,12 +83,24 @@ export async function createAuditEndpoint(
     return jsonResponse({ error: "URL is required" }, { status: 400 });
   }
 
+  let scrapedPage: ScrapedHomepage;
+  let brandTokens: BrandTokens;
+
+  try {
+    scrapedPage = await scraper(url);
+    brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Scrape failed";
+    return jsonResponse({ error: message }, { status: 422 });
+  }
+
   const { data, error } = await supabase
     .from("audits")
     .insert({
       user_id: user.id,
-      url,
+      url: scrapedPage.requestedUrl,
       status: "queued",
+      brand_tokens: brandTokens,
     })
     .select("*")
     .single();

@@ -93,6 +93,24 @@ export type Database = {
           },
         ];
       };
+      brand_voice_caches: {
+        Row: {
+          url_key: string;
+          voice: Json;
+          created_at: string;
+        };
+        Insert: {
+          url_key: string;
+          voice: Json;
+          created_at?: string;
+        };
+        Update: {
+          url_key?: string;
+          voice?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       book_principles: {
         Row: {
           id: string;

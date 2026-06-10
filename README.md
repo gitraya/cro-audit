@@ -2,18 +2,13 @@
 
 A web application that performs Conversion Rate Optimization audits on any homepage and generates an improved, brand-matched version of the page — grounded in established CRO and persuasion literature.
 
-> **Note to reviewer:** Fill in every `[FILL IN]` marker with your real choices as you build. Delete this note and any sections that don't apply before submitting. A README that accurately reflects what you built is what earns credit — don't describe anything you didn't implement.
-
----
-
 ## Live Demo
 
 - **Application URL:** https://monolitlabs.ai.raya.bio
 - **Test accounts:**
-  - `[FILL IN email 1]` / `[FILL IN password 1]`
-  - `[FILL IN email 2]` / `[FILL IN password 2]`
+  - Not included in this repo
 
-Both accounts come pre-loaded with example audits in their history.
+Audit history is stored per authenticated Supabase user.
 
 ---
 
@@ -35,12 +30,12 @@ Both accounts come pre-loaded with example audits in their history.
 | Framework    | Next.js App Router with TypeScript and Tailwind CSS |
 | Database     | Supabase PostgreSQL with pgvector                   |
 | Auth         | Supabase Auth                                       |
-| LLM provider | [FILL IN — e.g. Claude / Anthropic]                 |
-| Scraping     | [FILL IN — e.g. Cheerio]                            |
-| External API | [FILL IN — e.g. Google PageSpeed Insights]          |
-| Deployment   | [FILL IN — e.g. Vercel]                             |
+| LLM provider | Google Gemini via `@google/generative-ai`           |
+| Scraping     | Cheerio                                             |
+| External API | Not implemented yet                                 |
+| Deployment   | Vercel                                              |
 
-**Why this stack:** [FILL IN — 2-3 sentences on your reasoning. Mention playing to existing strengths, single-repo simplicity, managed DB with vector support, etc.]
+**Why this stack:** Next.js keeps the UI and server actions in one app. Supabase handles auth and Postgres persistence without adding a separate backend.
 
 ---
 
@@ -49,10 +44,10 @@ Both accounts come pre-loaded with example audits in their history.
 The audit runs as a pipeline of discrete stages:
 
 ```
-URL → Scrape → Brand Extraction → External API → Grounded Audit → Homepage Replication → Persist
+URL → Scrape → Brand Extraction → Persist
 ```
 
-[FILL IN — brief description of how the stages connect, where async/queuing happens if any, and how data flows through to storage.]
+The scraper returns transient in-memory page data. Brand extraction reads that data and returns `brand_tokens`. Only the audit row and brand tokens are persisted.
 
 ### Data model
 
@@ -61,59 +56,43 @@ The initial Supabase migration creates:
 - `profiles`: app-owned user profile rows linked to `auth.users`
 - `audits`: user-owned audit records with `status`, `brand_tokens`, `pagespeed_data`, `findings`, and `generated_html`
 - `book_principles`: seeded CRO/UX principles with pgvector embeddings for balanced retrieval
+- `brand_voice_caches`: durable per-URL voice-token cache
 
-Row-level security is enabled so users can only read and mutate their own profile and audit rows. Authenticated users can read `book_principles`.
+Row-level security is enabled so users can only read and mutate their own profile and audit rows. Authenticated users can read `book_principles` and use the voice cache.
 
 ---
 
 ## Knowledge Grounding (How Findings Stay Multi-Source)
 
-**Books used:**
-
-- [FILL IN — Book 1, e.g. *Don't Make Me Think* by Steve Krug]
-- [FILL IN — Book 2, e.g. *Influence* by Robert Cialdini]
-- [FILL IN — any additional sources]
-
-**How grounding works:**
-[FILL IN — describe your real approach. If you followed the plan:]
-
-> Each book's principles are chunked into discrete units (one principle + explanation per chunk), embedded, and stored in a vector database. At audit time, principles are retrieved using **balanced retrieval** — the top principles are pulled from _each book independently_ rather than globally, which prevents findings from collapsing toward a single dominant source. Each finding the LLM produces is tagged with the specific principle name and its source book, making multi-source usage explicit and traceable.
-
-**Why this prevents single-source collapse:** [FILL IN — explain in your own words. This is one of the most-graded aspects, so make the reasoning clear.]
+Not implemented yet. The schema includes `book_principles`, but retrieval and grounded finding generation are still pending.
 
 ---
 
 ## Deterministic Brand Extraction
 
-Brand tokens must be identical on repeat runs of the same URL. This is achieved by:
+Brand tokens must be identical on repeat runs of the same URL. Colors and fonts are extracted deterministically from CSS with no LLM. Voice can use Gemini at temperature 0, then the normalized result is cached by URL in Postgres.
 
-[FILL IN — describe your real approach. If you followed the plan:]
-
-> - **Colors and typography** are extracted deterministically by parsing the page's CSS directly (CSS variables, computed styles, frequency analysis of non-neutral colors, and `font-family` declarations) — no LLM involved.
-> - **Voice descriptors** [FILL IN — if you used an LLM: use a temperature-0 call cached per URL, guaranteeing identical output on repeat runs. If you parsed deterministically, say so.]
-
-Running the same URL twice produces identical brand tokens because [FILL IN — your reasoning].
+Running the same URL twice produces identical voice tokens because `extractVoice` checks `brand_voice_caches` before calling the provider.
 
 ---
 
 ## External API Integration
 
-**API used:** [FILL IN — e.g. Google PageSpeed Insights]
+**API used:** Not implemented yet.
 
-**How its output informs the audit:** [FILL IN — be specific. e.g. "Performance metrics like Largest Contentful Paint and accessibility scores are passed into the audit prompt and surface as concrete findings, such as slow-load issues tied to bounce-rate principles." The eval checks that the API *meaningfully* informs findings, not that it's just called.]
+This is still planned.
 
 ---
 
 ## Homepage Replication
 
-The generated homepage:
-[FILL IN — describe how it uses the extracted brand tokens, how the CRO solutions are visibly applied (improved headlines, clearer CTAs, restructured hierarchy, trust signals), and how it's rendered/viewable.]
+Not implemented yet.
 
 ---
 
 ## Persistence & History
 
-[FILL IN — describe how audits are saved per user, how the history list works, and confirm persistence holds across sessions.]
+Audits are inserted into Supabase with the authenticated user's id. The dashboard reads the user's audit history from Postgres, so history persists across sessions.
 
 ---
 
@@ -121,8 +100,8 @@ The generated homepage:
 
 ```bash
 # 1. Clone
-git clone [FILL IN repo URL]
-cd [FILL IN]
+git clone <repo-url>
+cd monolitlabs.ai
 
 # 2. Install
 npm install
@@ -132,6 +111,7 @@ cp .env.example .env.local
 # Fill in:
 #   NEXT_PUBLIC_SUPABASE_URL
 #   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+#   GEMINI_API_KEY
 #   SUPABASE_DB_URL
 
 # 4. Database setup
@@ -159,24 +139,24 @@ npm run db:migrate
 
 ## AI Tools in My Workflow
 
-[FILL IN — the eval explicitly evaluates "thoughtful use of AI tools." Briefly describe how you used Claude Code / Cursor / etc. — e.g. for scaffolding, debugging the retrieval logic, iterating on prompts. Be honest and specific; this is a real evaluation criterion.]
+AI assistance was used for implementation support, debugging extraction edge cases, and test iteration.
 
 ---
 
 ## Key Decisions & Tradeoffs
 
-[FILL IN — a short list of the meaningful choices you made and why. Examples:]
-
-- [Why deterministic parsing over LLM for brand tokens]
-- [Why balanced retrieval over global top-N]
-- [Why this external API over alternatives]
-- [What you simplified given the time budget]
+- Colors and fonts are parsed deterministically instead of inferred by an LLM.
+- Raw scraped content stays transient; only `brand_tokens` are persisted.
+- Voice uses an LLM only behind a durable URL cache.
 
 ---
 
 ## What's Unfinished / Next Steps
 
-[FILL IN — honesty here is rewarded. List anything incomplete and what you'd do with more time. If everything's done, say what you'd improve for production: caching, queueing scrapes, handling JS-heavy sites, etc.]
+- PageSpeed integration
+- RAG retrieval and grounded CRO findings
+- Homepage generation
+- Better handling for heavily JavaScript-rendered sites
 
 ---
 
