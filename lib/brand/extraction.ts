@@ -1,4 +1,5 @@
 import type { ScrapedHomepage } from "../scraper/homepage.ts";
+import { normalizedCacheKey } from "../url/cache-key.ts";
 import { readCachedVoice, writeCachedVoice } from "./voice-cache.ts";
 
 export type BrandTokens = {
@@ -766,12 +767,4 @@ function unique<T>(items: T[]) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function normalizedCacheKey(url: string) {
-  try {
-    return new URL(url).toString();
-  } catch {
-    return url.trim();
-  }
 }

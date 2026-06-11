@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { extractBrandTokens } from "@/lib/brand/extraction";
 import { createGeminiVoiceProvider } from "@/lib/brand/voice/gemini-provider";
+import { getCachedPageSpeedSignals } from "@/lib/pagespeed/client";
 import { scrapeHomepage } from "@/lib/scraper/homepage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -26,9 +27,13 @@ export async function createAudit(formData: FormData) {
 
   let scrapedPage;
   let brandTokens;
+  let pageSpeedData;
 
   try {
-    scrapedPage = await scrapeHomepage(url);
+    [scrapedPage, pageSpeedData] = await Promise.all([
+      scrapeHomepage(url),
+      getCachedPageSpeedSignals(url),
+    ]);
     brandTokens = await extractBrandTokens(
       scrapedPage,
       createGeminiVoiceProvider(),
@@ -45,7 +50,7 @@ export async function createAudit(formData: FormData) {
       url: scrapedPage.requestedUrl,
       status: "queued",
       brand_tokens: brandTokens,
-      pagespeed_data: null,
+      pagespeed_data: pageSpeedData,
       findings: null,
       generated_html: null,
     })
