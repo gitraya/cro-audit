@@ -30,9 +30,11 @@ export async function createAudit(formData: FormData) {
   let pageSpeedData;
 
   try {
+    const pageSpeedPromise = getCachedPageSpeedSignals(url);
+    const scrapePromise = scrapeHomepage(url);
     [scrapedPage, pageSpeedData] = await Promise.all([
-      scrapeHomepage(url),
-      getCachedPageSpeedSignals(url),
+      scrapePromise,
+      pageSpeedPromise,
     ]);
     brandTokens = await extractBrandTokens(
       scrapedPage,

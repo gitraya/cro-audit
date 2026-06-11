@@ -96,9 +96,11 @@ export async function createAuditEndpoint(
   let pageSpeedData: PageSpeedSignals | null;
 
   try {
+    const pageSpeedPromise = pageSpeedCollector(url);
+    const scrapePromise = scraper(url);
     [scrapedPage, pageSpeedData] = await Promise.all([
-      scraper(url),
-      pageSpeedCollector(url),
+      scrapePromise,
+      pageSpeedPromise,
     ]);
     brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
   } catch (error) {
