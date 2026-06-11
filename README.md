@@ -32,7 +32,7 @@ Audit history is stored per authenticated Supabase user.
 | Auth         | Supabase Auth                                       |
 | LLM provider | Google Gemini via `@google/generative-ai`           |
 | Scraping     | Cheerio                                             |
-| External API | Not implemented yet                                 |
+| External API | Google PageSpeed Insights                           |
 | Deployment   | Vercel                                              |
 
 **Why this stack:** Next.js keeps the UI and server actions in one app. Supabase handles auth and Postgres persistence without adding a separate backend.
@@ -44,10 +44,10 @@ Audit history is stored per authenticated Supabase user.
 The audit runs as a pipeline of discrete stages:
 
 ```
-URL → Scrape → Brand Extraction → Persist
+URL → Scrape + PageSpeed Insights → Brand Extraction → Persist
 ```
 
-The scraper returns transient in-memory page data. Brand extraction reads that data and returns `brand_tokens`. Only the audit row and brand tokens are persisted.
+The scraper returns transient in-memory page data. PageSpeed Insights runs in parallel with scraping because it is slow and independent. Brand extraction reads the scrape result and returns `brand_tokens`. Only the audit row, brand tokens, and structured PageSpeed signals are persisted.
 
 ### Data model
 
@@ -57,6 +57,7 @@ The initial Supabase migration creates:
 - `audits`: user-owned audit records with `status`, `brand_tokens`, `pagespeed_data`, `findings`, and `generated_html`
 - `book_principles`: seeded CRO/UX principles with pgvector embeddings for balanced retrieval
 - `brand_voice_caches`: durable per-URL voice-token cache
+- `pagespeed_caches`: durable per-URL PageSpeed signal cache
 
 Row-level security is enabled so users can only read and mutate their own profile and audit rows. Authenticated users can read `book_principles` and use the voice cache.
 
@@ -78,9 +79,9 @@ Running the same URL twice produces identical voice tokens because `extractVoice
 
 ## External API Integration
 
-**API used:** Not implemented yet.
+**API used:** Google PageSpeed Insights.
 
-This is still planned.
+Each audit requests mobile `performance` and `accessibility` categories with `PAGESPEED_API_KEY`. The app extracts a compact `PageSpeedSignals` object rather than storing the raw Lighthouse blob: 0-100 category scores, LCP/CLS/TBT values with ratings, and up to six deterministic CRO-relevant weak audits. Signals are cached in Postgres by normalized URL. If PageSpeed is unavailable, the audit still proceeds with `pagespeed_data: null`.
 
 ---
 
@@ -112,6 +113,7 @@ cp .env.example .env.local
 #   NEXT_PUBLIC_SUPABASE_URL
 #   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 #   GEMINI_API_KEY
+#   PAGESPEED_API_KEY
 #   SUPABASE_DB_URL
 
 # 4. Database setup
@@ -146,14 +148,14 @@ AI assistance was used for implementation support, debugging extraction edge cas
 ## Key Decisions & Tradeoffs
 
 - Colors and fonts are parsed deterministically instead of inferred by an LLM.
-- Raw scraped content stays transient; only `brand_tokens` are persisted.
+- Raw scraped content stays transient; only `brand_tokens` and structured `pagespeed_data` are persisted.
 - Voice uses an LLM only behind a durable URL cache.
+- PageSpeed runs concurrently with scraping and is cached per URL to avoid repeated slow external calls.
 
 ---
 
 ## What's Unfinished / Next Steps
 
-- PageSpeed integration
 - RAG retrieval and grounded CRO findings
 - Homepage generation
 - Better handling for heavily JavaScript-rendered sites

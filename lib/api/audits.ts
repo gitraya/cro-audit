@@ -4,6 +4,10 @@ import {
   type BrandTokens,
   type VoiceProvider,
 } from "../brand/extraction.ts";
+import {
+  getCachedPageSpeedSignals,
+  type PageSpeedSignals,
+} from "../pagespeed/client.ts";
 import { scrapeHomepage, type ScrapedHomepage } from "../scraper/homepage.ts";
 
 type EndpointUser = {
@@ -37,6 +41,7 @@ type EndpointSupabaseClient = {
       url: string;
       status: "queued";
       brand_tokens: BrandTokens;
+      pagespeed_data: PageSpeedSignals | null;
     }) => {
       select: (columns: string) => {
         single: () => QueryResult<unknown>;
@@ -69,6 +74,9 @@ export async function createAuditEndpoint(
   supabase: EndpointSupabaseClient,
   scraper: (url: string) => Promise<ScrapedHomepage> = scrapeHomepage,
   voiceProvider?: VoiceProvider,
+  pageSpeedCollector: (
+    url: string,
+  ) => Promise<PageSpeedSignals | null> = getCachedPageSpeedSignals,
 ) {
   const user = await getAuthenticatedUser(supabase);
 
@@ -85,9 +93,15 @@ export async function createAuditEndpoint(
 
   let scrapedPage: ScrapedHomepage;
   let brandTokens: BrandTokens;
+  let pageSpeedData: PageSpeedSignals | null;
 
   try {
-    scrapedPage = await scraper(url);
+    const pageSpeedPromise = pageSpeedCollector(url);
+    const scrapePromise = scraper(url);
+    [scrapedPage, pageSpeedData] = await Promise.all([
+      scrapePromise,
+      pageSpeedPromise,
+    ]);
     brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Scrape failed";
@@ -101,6 +115,7 @@ export async function createAuditEndpoint(
       url: scrapedPage.requestedUrl,
       status: "queued",
       brand_tokens: brandTokens,
+      pagespeed_data: pageSpeedData,
     })
     .select("*")
     .single();

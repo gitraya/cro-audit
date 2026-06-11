@@ -111,6 +111,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      pagespeed_caches: {
+        Row: {
+          url_key: string;
+          signals: Json;
+          created_at: string;
+        };
+        Insert: {
+          url_key: string;
+          signals: Json;
+          created_at?: string;
+        };
+        Update: {
+          url_key?: string;
+          signals?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       book_principles: {
         Row: {
           id: string;

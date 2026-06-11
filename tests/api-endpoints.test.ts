@@ -5,6 +5,7 @@ import {
   getAuditsEndpoint,
 } from "../lib/api/audits.ts";
 import type { BrandTokens } from "../lib/brand/extraction.ts";
+import type { PageSpeedSignals } from "../lib/pagespeed/client.ts";
 import type { ScrapedHomepage } from "../lib/scraper/homepage.ts";
 import { getUserEndpoint } from "../lib/api/user.ts";
 
@@ -130,6 +131,8 @@ test("POST /api/audits creates a queued audit with the authenticated user id", a
     createJsonRequest({ url: "  https://example.com  " }),
     client,
     async () => scrape,
+    undefined,
+    async () => expectedPageSpeedSignals,
   );
 
   assert.equal(response.status, 201);
@@ -139,10 +142,42 @@ test("POST /api/audits creates a queued audit with the authenticated user id", a
     url: scrape.requestedUrl,
     status: "queued",
     brand_tokens: expectedBrandTokens,
+    pagespeed_data: expectedPageSpeedSignals,
   });
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /scrape/);
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /bodyText/);
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /html/);
+});
+
+test("POST /api/audits starts PageSpeed collection before scrape completes", async () => {
+  let pageSpeedStarted = false;
+  let scrapeSawPageSpeedStarted = false;
+  const client = createAuditsClient({
+    user: authenticatedUser,
+    insertedAuditData: {
+      id: "audit-1",
+      user_id: authenticatedUser.id,
+      url: "https://api.example.com/",
+      status: "queued",
+    },
+  });
+
+  const response = await createAuditEndpoint(
+    createJsonRequest({ url: "https://example.com" }),
+    client,
+    async () => {
+      scrapeSawPageSpeedStarted = pageSpeedStarted;
+      return createScrapedHomepage();
+    },
+    undefined,
+    async () => {
+      pageSpeedStarted = true;
+      return expectedPageSpeedSignals;
+    },
+  );
+
+  assert.equal(response.status, 201);
+  assert.equal(scrapeSawPageSpeedStarted, true);
 });
 
 test("POST /api/audits returns 422 when scraping fails", async () => {
@@ -152,6 +187,8 @@ test("POST /api/audits returns 422 when scraping fails", async () => {
     async () => {
       throw new Error("Failed to fetch page: 404");
     },
+    undefined,
+    async () => null,
   );
 
   assert.equal(response.status, 422);
@@ -166,6 +203,8 @@ test("POST /api/audits returns 500 when audit insert fails", async () => {
       insertError: { message: "insert failed" },
     }),
     async () => createScrapedHomepage(),
+    undefined,
+    async () => expectedPageSpeedSignals,
   );
 
   assert.equal(response.status, 500);
@@ -238,6 +277,7 @@ function createAuditsClient(options: {
       url: string;
       status: "queued";
       brand_tokens: BrandTokens;
+      pagespeed_data: PageSpeedSignals | null;
     };
   } = {};
 
@@ -271,6 +311,7 @@ function createAuditsClient(options: {
           url: string;
           status: "queued";
           brand_tokens: BrandTokens;
+          pagespeed_data: PageSpeedSignals | null;
         }) {
           calls.insert = values;
 
@@ -348,4 +389,35 @@ const expectedBrandTokens: BrandTokens = {
     voice:
       "URL-cached deterministic voice extraction from title, meta description, headings, and body copy; no LLM provider configured and no defaults are invented.",
   },
+};
+
+const expectedPageSpeedSignals: PageSpeedSignals = {
+  scores: {
+    performance: 82,
+    accessibility: 91,
+  },
+  coreWebVitals: {
+    lcp: {
+      value: 2800,
+      displayValue: "2.8 s",
+      rating: "needs-improvement",
+    },
+    cls: {
+      value: 0.03,
+      displayValue: "0.03",
+      rating: "good",
+    },
+    tbt: {
+      value: 180,
+      displayValue: "180 ms",
+      rating: "needs-improvement",
+    },
+  },
+  topIssues: [
+    {
+      id: "largest-contentful-paint",
+      title: "Largest Contentful Paint",
+      description: "Largest Contentful Paint marks the time.",
+    },
+  ],
 };
