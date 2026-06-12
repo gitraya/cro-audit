@@ -1,0 +1,135 @@
+[
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Reciprocity",
+    "explanation": "People feel a strong social obligation to return favors. When someone gives us something first, we feel indebted and are far more likely to give back, often disproportionately to what we received.",
+    "cro_application": "Offer genuine value before asking for commitment: a free tool, a useful guide, a no-strings trial, or actionable content. Lead with giving rather than extracting. A page that demands an email before showing any value inverts reciprocity and increases friction; a page that gives first earns the right to ask."
+  },
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Commitment and Consistency",
+    "explanation": "Once people make a small commitment or take a small action, they strive to behave consistently with it. Small initial agreements pave the way for larger ones because people want to align their later actions with their earlier choices.",
+    "cro_application": "Use progressive engagement instead of demanding a big commitment up front. Break long forms into steps, start with a low-friction micro-action, and let early small yeses build toward the conversion. A single intimidating sign-up wall asks for too much commitment too early."
+  },
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Social Proof",
+    "explanation": "People look to the actions and approval of others to decide what is correct, especially under uncertainty. The more people appear to endorse something, the more trustworthy and correct it seems.",
+    "cro_application": "Show real testimonials, customer logos, user counts, ratings, reviews, and case studies near decision points like CTAs and pricing. A page with no evidence that others trust the product leaves visitors to judge risk alone. Specific, credible social proof reduces perceived risk at the moment of action."
+  },
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Authority",
+    "explanation": "People defer to credible experts and legitimate authority. Signals of expertise, credentials, and trustworthiness make persuasion more effective because we assume authorities know better.",
+    "cro_application": "Surface credibility signals: certifications, press mentions, expert endorsements, security badges, data, and credentials. On a homepage, authority markers near claims make those claims believable. Unsupported superlative claims without authority backing read as empty marketing."
+  },
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Liking",
+    "explanation": "People prefer to say yes to those they know, like, and feel similar to. Warmth, familiarity, shared values, and genuine relatability increase persuasion.",
+    "cro_application": "Use human, relatable language and imagery; show the real team or real customers; reflect the visitor's own goals and values back to them. Cold, corporate, faceless pages reduce liking. Copy that speaks to the visitor as a person and demonstrates shared values builds rapport that supports conversion."
+  },
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Scarcity",
+    "explanation": "People value things more when they are rare, limited, or potentially unavailable. The fear of missing out motivates action more strongly than the prospect of equivalent gain.",
+    "cro_application": "Communicate genuine limited availability, time-bound offers, or exclusive access truthfully. Real scarcity near a CTA increases urgency to act now rather than later. Fabricated or fake-countdown scarcity erodes trust, so it must be authentic; the absence of any urgency can let motivated visitors delay indefinitely and never return."
+  },
+  {
+    "book_title": "Influence",
+    "book_author": "Robert Cialdini",
+    "principle": "Unity",
+    "explanation": "People are most influenced by those they consider part of their own group or shared identity. A sense of we, of belonging to the same category as the visitor, is more powerful than mere liking.",
+    "cro_application": "Frame the product around a shared identity the visitor belongs to ('built for indie founders', 'made by engineers for engineers'). Language that signals 'we are like you and this is for people like us' creates belonging. Generic positioning that speaks to everyone signals belonging to no one."
+  },
+  {
+    "book_title": "Don't Make Me Think",
+    "book_author": "Steve Krug",
+    "principle": "Don't Make Me Think",
+    "explanation": "A page should be self-evident. Users should not have to expend cognitive effort figuring out what things are or how to use them. Every question a page forces a user to ask adds cognitive load that erodes attention and goodwill.",
+    "cro_application": "Make the purpose of the page, the value proposition, and the primary action obvious within seconds. Avoid clever or ambiguous labels for navigation and buttons. If a visitor has to pause to work out what the product does or what to click, the page is creating friction that costs conversions."
+  },
+  {
+    "book_title": "Don't Make Me Think",
+    "book_author": "Steve Krug",
+    "principle": "Clarity Trumps Persuasion",
+    "explanation": "Clear communication beats clever communication. Users skim rather than read, so plain, scannable, unambiguous wording communicates faster than witty or vague copy that requires interpretation.",
+    "cro_application": "Write headlines and CTAs in plain, concrete language that states the benefit directly. Replace clever taglines that hide meaning with clear value statements. A headline that sounds impressive but doesn't tell the visitor what the product does fails the clarity test and loses skimming visitors."
+  },
+  {
+    "book_title": "Don't Make Me Think",
+    "book_author": "Steve Krug",
+    "principle": "Visual Hierarchy",
+    "explanation": "Pages should present information in a clear visual hierarchy where the most important elements are the most prominent, related things are grouped, and structure reflects meaning. This lets users grasp the page at a glance.",
+    "cro_application": "Make the primary CTA and core value proposition visually dominant; de-emphasize secondary elements. Group related content and use size, contrast, and spacing to guide the eye. A page where everything competes for attention, or where the main action is visually buried, forces users to work to find what matters."
+  },
+  {
+    "book_title": "Don't Make Me Think",
+    "book_author": "Steve Krug",
+    "principle": "Minimize Friction and Noise",
+    "explanation": "Every unnecessary word, distraction, or step is noise that competes with the things users actually need. Getting rid of needless complexity makes what remains more prominent and easier to act on.",
+    "cro_application": "Remove redundant copy, unnecessary form fields, competing CTAs, and visual clutter. Each removed distraction increases the salience of the primary action. Pages crowded with too many choices, popups, and competing messages dilute focus and reduce the likelihood of any single conversion action."
+  },
+  {
+    "book_title": "Don't Make Me Think",
+    "book_author": "Steve Krug",
+    "principle": "Conventions Are Your Friend",
+    "explanation": "Users rely on established conventions learned from other sites: where navigation lives, what a logo links to, what a cart icon means. Following conventions lets users act without relearning, while breaking them for novelty costs comprehension.",
+    "cro_application": "Use familiar patterns for navigation, buttons, links, and layout so users instantly know how to proceed. Reserve creativity for content and brand, not core interaction patterns. A site that reinvents standard UI elements forces users to think and increases the chance they get lost or give up."
+  },
+  {
+    "book_title": "Don't Make Me Think",
+    "book_author": "Steve Krug",
+    "principle": "The Trunk Test and Clear Navigation",
+    "explanation": "On any page, users should quickly be able to tell where they are, what this page is, and where they can go next. Orientation and navigation must be obvious from any entry point, not just the home page.",
+    "cro_application": "Ensure the homepage immediately communicates what the site is, who it's for, and the next step. Provide clear, consistent navigation and obvious next actions. A homepage that doesn't quickly orient a first-time visitor about what the company does loses people who won't invest effort to figure it out."
+  },
+  {
+    "book_title": "Building a StoryBrand",
+    "book_author": "Donald Miller",
+    "principle": "The Customer Is the Hero",
+    "explanation": "Brands often cast themselves as the hero of the story, but customers should be the hero and the brand should be the guide that helps them succeed. People are drawn to messages about their own transformation, not the company's greatness.",
+    "cro_application": "Frame copy around the visitor's goals, problems, and desired outcome rather than the company's history or achievements. Lead with what the visitor will gain or become. Homepages that open with 'we are a leading provider...' center the brand instead of the customer and fail to engage the visitor's self-interest."
+  },
+  {
+    "book_title": "Building a StoryBrand",
+    "book_author": "Donald Miller",
+    "principle": "Clarify the Core Message",
+    "explanation": "If you confuse, you lose. A brand must communicate a single, clear message about what it offers and why it matters, distilled enough that a visitor instantly understands it. Cluttered or vague messaging makes the brain work too hard and disengage.",
+    "cro_application": "Lead with one clear statement of what the product does and the value it delivers, above the fold. Avoid jargon and multiple competing messages. A homepage hero that lists many features but never states the core offer in plain terms leaves visitors unsure what the company actually does."
+  },
+  {
+    "book_title": "Building a StoryBrand",
+    "book_author": "Donald Miller",
+    "principle": "Identify the Customer's Problem",
+    "explanation": "Stories are driven by a problem the hero must overcome. Clearly naming the customer's problem (external, internal, and the deeper frustration it causes) shows the visitor you understand them and positions the product as the resolution.",
+    "cro_application": "Explicitly articulate the problem the visitor faces before presenting the solution. Naming the pain creates resonance and relevance. Pages that jump straight to features without first framing the problem they solve miss the chance to make the visitor feel understood and to motivate the need for action."
+  },
+  {
+    "book_title": "Building a StoryBrand",
+    "book_author": "Donald Miller",
+    "principle": "Position the Brand as Guide",
+    "explanation": "The guide demonstrates two things to the hero: empathy and authority. Empathy shows the brand understands the customer's struggle; authority shows it has the competence to help. Together they earn the customer's trust to follow the guide's plan.",
+    "cro_application": "Pair empathetic language ('we understand how frustrating X is') with authority signals (results, experience, testimonials). This combination builds the trust needed to convert. A page that only boasts authority without empathy feels cold, while empathy without authority feels unconvincing."
+  },
+  {
+    "book_title": "Building a StoryBrand",
+    "book_author": "Donald Miller",
+    "principle": "Give the Customer a Clear Plan",
+    "explanation": "Customers are wary of committing until they see a simple, clear path forward. A small set of obvious steps reduces the perceived risk and confusion of doing business with you, making the decision feel safe and manageable.",
+    "cro_application": "Show a simple 3-step plan ('Sign up, Connect your data, Get results') that makes the path to value obvious and low-risk. Without a visible plan, visitors don't know what happens after they click and hesitate. A clear plan removes uncertainty that blocks the conversion."
+  },
+  {
+    "book_title": "Building a StoryBrand",
+    "book_author": "Donald Miller",
+    "principle": "Call to Action and Stakes",
+    "explanation": "Customers don't act unless explicitly challenged to, so a strong direct call to action is essential. Stories also need stakes: showing what the customer stands to gain by acting and to lose by not acting gives the decision weight and urgency.",
+    "cro_application": "Use one prominent, direct CTA repeated at natural decision points, and make the stakes clear by showing the positive outcome of acting and the cost of inaction. Weak, passive, or buried CTAs ('learn more') and pages with no sense of what's at stake give visitors no reason to act now."
+  }
+]

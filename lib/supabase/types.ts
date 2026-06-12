@@ -133,25 +133,31 @@ export type Database = {
         Row: {
           id: string;
           book_title: string;
-          principle_name: string;
-          content: string;
-          embedding: string | null;
+          book_author: string;
+          principle: string;
+          explanation: string;
+          cro_application: string;
+          embedding: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           book_title: string;
-          principle_name: string;
-          content: string;
-          embedding?: string | null;
+          book_author: string;
+          principle: string;
+          explanation: string;
+          cro_application: string;
+          embedding: string;
           created_at?: string;
         };
         Update: {
           id?: string;
           book_title?: string;
-          principle_name?: string;
-          content?: string;
-          embedding?: string | null;
+          book_author?: string;
+          principle?: string;
+          explanation?: string;
+          cro_application?: string;
+          embedding?: string;
           created_at?: string;
         };
         Relationships: [];
