@@ -113,11 +113,11 @@ test("POST /api/audits returns 400 when URL is missing", async () => {
   assert.deepEqual(await response.json(), { error: "URL is required" });
 });
 
-test("POST /api/audits creates a queued audit with the authenticated user id", async () => {
+test("POST /api/audits creates an audit, runs the CRO pipeline, and returns completed findings", async () => {
   const scrape = createScrapedHomepage({
     requestedUrl: "https://example.com/",
   });
-  const audit = {
+  const insertedAudit = {
     id: "audit-1",
     user_id: authenticatedUser.id,
     url: scrape.requestedUrl,
@@ -125,18 +125,45 @@ test("POST /api/audits creates a queued audit with the authenticated user id", a
   };
   const client = createAuditsClient({
     user: authenticatedUser,
-    insertedAuditData: audit,
+    insertedAuditData: insertedAudit,
   });
+  const mockFindings = [
+    {
+      observation: "The hero lacks social proof.",
+      solution: "Add testimonials near the CTA.",
+      principle: "Social proof",
+      source_book: "Influence",
+    },
+  ];
+  const mockPrinciples = [{ book_title: "Influence", principle: "Social proof" }];
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "  https://example.com  " }),
     client,
     async () => scrape,
     undefined,
     async () => expectedPageSpeedSignals,
+    async () =>
+      mockPrinciples.map((p) => ({
+        ...p,
+        id: "p-1",
+        book_author: "Cialdini",
+        explanation: "People follow others.",
+        cro_application: "Show testimonials.",
+        distance: 0.2,
+        similarity: 0.8,
+      })),
+    async () => ({ findings: mockFindings }),
   );
 
   assert.equal(response.status, 201);
-  assert.deepEqual(await response.json(), { audit });
+  assert.deepEqual(await response.json(), {
+    audit: {
+      ...insertedAudit,
+      status: "completed",
+      findings: mockFindings,
+      error_message: null,
+    },
+  });
   assert.deepEqual(client.calls.insert, {
     user_id: authenticatedUser.id,
     url: scrape.requestedUrl,
@@ -144,6 +171,8 @@ test("POST /api/audits creates a queued audit with the authenticated user id", a
     brand_tokens: expectedBrandTokens,
     pagespeed_data: expectedPageSpeedSignals,
   });
+  assert.equal(client.calls.update?.id, insertedAudit.id);
+  assert.equal(client.calls.update?.values.status, "completed");
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /scrape/);
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /bodyText/);
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /html/);
@@ -174,6 +203,8 @@ test("POST /api/audits starts PageSpeed collection before scrape completes", asy
       pageSpeedStarted = true;
       return expectedPageSpeedSignals;
     },
+    async () => [],
+    async () => ({ findings: [] }),
   );
 
   assert.equal(response.status, 201);
@@ -266,6 +297,7 @@ function createAuditsClient(options: {
   auditsError?: { message: string } | null;
   insertedAuditData?: unknown;
   insertError?: { message: string } | null;
+  updateError?: { message: string } | null;
 }) {
   const calls: {
     order?: {
@@ -278,6 +310,10 @@ function createAuditsClient(options: {
       status: "queued";
       brand_tokens: BrandTokens;
       pagespeed_data: PageSpeedSignals | null;
+    };
+    update?: {
+      values: Record<string, unknown>;
+      id: string;
     };
   } = {};
 
@@ -327,6 +363,16 @@ function createAuditsClient(options: {
                   };
                 },
               };
+            },
+          };
+        },
+        update(values: Record<string, unknown>) {
+          return {
+            eq(column: string, id: string) {
+              assert.equal(column, "id");
+              calls.update = { values, id };
+
+              return Promise.resolve({ data: null, error: options.updateError ?? null });
             },
           };
         },
