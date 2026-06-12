@@ -9,6 +9,14 @@ import {
   type PageSpeedSignals,
 } from "../pagespeed/client.ts";
 import { scrapeHomepage, type ScrapedHomepage } from "../scraper/homepage.ts";
+import {
+  retrieveBalancedPrinciples,
+  type BalancedPrinciple,
+  type BalancedPrinciplesInput,
+} from "../cro-audit/retrieval.ts";
+import { generateAudit, type GeneratedAudit } from "../cro-audit/generation.ts";
+import { validateAudit } from "../cro-audit/validation.ts";
+import type { AuditStatus, Json } from "../supabase/types.ts";
 
 type EndpointUser = {
   id: string;
@@ -47,6 +55,13 @@ type EndpointSupabaseClient = {
         single: () => QueryResult<unknown>;
       };
     };
+    update: (values: {
+      status: AuditStatus;
+      findings?: Json | null;
+      error_message?: string | null;
+    }) => {
+      eq: (column: string, value: string) => QueryResult<unknown>;
+    };
   };
 };
 
@@ -77,6 +92,13 @@ export async function createAuditEndpoint(
   pageSpeedCollector: (
     url: string,
   ) => Promise<PageSpeedSignals | null> = getCachedPageSpeedSignals,
+  principleRetriever: (
+    inputs: BalancedPrinciplesInput,
+  ) => Promise<BalancedPrinciple[]> = retrieveBalancedPrinciples,
+  auditGenerator: (
+    inputs: BalancedPrinciplesInput,
+    principles: BalancedPrinciple[],
+  ) => Promise<GeneratedAudit> = generateAudit,
 ) {
   const user = await getAuthenticatedUser(supabase);
 
@@ -124,7 +146,92 @@ export async function createAuditEndpoint(
     return jsonResponse({ error: error.message }, { status: 500 });
   }
 
-  return jsonResponse({ audit: data }, { status: 201 });
+  const insertedAudit = data as { id: string } & Record<string, unknown>;
+  const inputs: BalancedPrinciplesInput = {
+    title: scrapedPage.title,
+    description: scrapedPage.description,
+    headings: { h1: scrapedPage.headings.h1, h2: scrapedPage.headings.h2 },
+    bodyText: scrapedPage.bodyText,
+    pageSpeedSummary: pageSpeedData
+      ? buildPageSpeedSummary(pageSpeedData)
+      : null,
+  };
+
+  let updateValues: {
+    status: AuditStatus;
+    findings: Json | null;
+    error_message: string | null;
+  };
+
+  try {
+    const principles = await principleRetriever(inputs);
+    const generated = await auditGenerator(inputs, principles);
+    const {
+      validFindings,
+      rejectedFindings,
+      sourceCoverage,
+      collapsedToSingleSource,
+    } = validateAudit(generated, principles);
+
+    console.log("Additional Info from audit process: ", {
+      rejectedFindings,
+      sourceCoverage,
+      collapsedToSingleSource,
+    });
+
+    updateValues = {
+      status: "completed",
+      findings: validFindings as unknown as Json,
+      error_message: null,
+    };
+  } catch (auditError) {
+    updateValues = {
+      status: "failed",
+      findings: null,
+      error_message:
+        auditError instanceof Error ? auditError.message : "CRO audit failed",
+    };
+  }
+
+  const { error: updateError } = await supabase
+    .from("audits")
+    .update(updateValues)
+    .eq("id", insertedAudit.id);
+
+  if (updateError) {
+    return jsonResponse(
+      { error: (updateError as { message: string }).message },
+      { status: 500 },
+    );
+  }
+
+  return jsonResponse(
+    { audit: { ...insertedAudit, ...updateValues } },
+    { status: 201 },
+  );
+}
+
+function buildPageSpeedSummary(signals: PageSpeedSignals): string {
+  const parts: string[] = [];
+  const { scores, coreWebVitals, topIssues } = signals;
+
+  if (scores.performance !== null)
+    parts.push(`Performance: ${scores.performance}/100`);
+  if (scores.accessibility !== null)
+    parts.push(`Accessibility: ${scores.accessibility}/100`);
+
+  const { lcp, cls, tbt } = coreWebVitals;
+  if (lcp.displayValue) parts.push(`LCP: ${lcp.displayValue} (${lcp.rating})`);
+  if (cls.displayValue) parts.push(`CLS: ${cls.displayValue} (${cls.rating})`);
+  if (tbt.displayValue) parts.push(`TBT: ${tbt.displayValue} (${tbt.rating})`);
+
+  if (topIssues.length > 0) {
+    parts.push(
+      `Top issues: ${topIssues.map((issue) => issue.title).join(", ")}`,
+    );
+  }
+
+  return parts.join("; ");
 }
 
 async function getAuthenticatedUser(supabase: EndpointSupabaseClient) {

@@ -164,7 +164,25 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      match_principles_by_book: {
+        Args: {
+          query_embedding: string;
+          target_book: string;
+          match_count: number;
+        };
+        Returns: {
+          id: string;
+          book_title: string;
+          book_author: string;
+          principle: string;
+          explanation: string;
+          cro_application: string;
+          distance: number;
+          similarity: number;
+        }[];
+      };
+    };
     Enums: {
       audit_status: AuditStatus;
     };
