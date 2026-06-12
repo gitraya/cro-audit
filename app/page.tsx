@@ -20,9 +20,9 @@ export default function Home() {
 
         <div className="grid flex-1 items-center gap-10 py-16 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <p className="max-w-2xl text-5xl font-semibold leading-tight text-neutral-950">
-              Analyze a homepage, ground the CRO recommendations, and generate
-              a brand-matched revision.
+            <p className="max-w-6xl text-5xl font-semibold leading-tight text-neutral-950">
+              Analyze a homepage, ground the CRO recommendations, and generate a
+              brand-matched revision.
             </p>
             <p className="mt-6 max-w-xl text-lg leading-8 text-neutral-600">
               This scaffold is ready for the planned pipeline: scraping,
@@ -55,8 +55,8 @@ export default function Home() {
                 Supabase Auth protects the dashboard and audit detail routes.
               </li>
               <li>
-                <span className="font-medium text-neutral-950">2.</span>{" "}
-                User profiles, audit history, and RAG principles are modeled in
+                <span className="font-medium text-neutral-950">2.</span> User
+                profiles, audit history, and RAG principles are modeled in
                 Postgres with RLS.
               </li>
               <li>
