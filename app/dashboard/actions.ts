@@ -1,12 +1,13 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { extractBrandTokens } from "@/lib/brand/extraction";
+import { createAuditEndpoint } from "@/lib/api/audits";
 import { createGeminiVoiceProvider } from "@/lib/brand/voice/gemini-provider";
-import { getCachedPageSpeedSignals } from "@/lib/pagespeed/client";
-import { scrapeHomepage } from "@/lib/scraper/homepage";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+
+type AuditEndpointClient = Parameters<typeof createAuditEndpoint>[1];
 
 export async function createAudit(formData: FormData) {
   const rawUrl = formData.get("url");
@@ -17,52 +18,33 @@ export async function createAudit(formData: FormData) {
   }
 
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost";
+  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const request = new Request(`${protocol}://${host}/api/audits`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
 
-  if (!user) {
-    redirect("/login");
-  }
+  const response = await createAuditEndpoint(
+    request,
+    supabase as unknown as AuditEndpointClient,
+    undefined,
+    createGeminiVoiceProvider(),
+  );
 
-  let scrapedPage;
-  let brandTokens;
-  let pageSpeedData;
+  const body = (await response.json()) as {
+    audit?: { id: string };
+    error?: string;
+  };
 
-  try {
-    const pageSpeedPromise = getCachedPageSpeedSignals(url);
-    const scrapePromise = scrapeHomepage(url);
-    [scrapedPage, pageSpeedData] = await Promise.all([
-      scrapePromise,
-      pageSpeedPromise,
-    ]);
-    brandTokens = await extractBrandTokens(
-      scrapedPage,
-      createGeminiVoiceProvider(),
+  if (!response.ok || !body.audit?.id) {
+    redirect(
+      `/dashboard?error=${encodeURIComponent(body.error ?? "Audit failed")}`,
     );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Scrape failed";
-    redirect(`/dashboard?error=${encodeURIComponent(message)}`);
-  }
-
-  const { data, error } = await supabase
-    .from("audits")
-    .insert({
-      user_id: user.id,
-      url: scrapedPage.requestedUrl,
-      status: "queued",
-      brand_tokens: brandTokens,
-      pagespeed_data: pageSpeedData,
-      findings: null,
-      generated_html: null,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    redirect(`/dashboard?error=${encodeURIComponent(error.message)}`);
   }
 
   revalidatePath("/dashboard");
-  redirect(`/audits/${data.id}`);
+  redirect(`/audits/${body.audit.id}`);
 }
