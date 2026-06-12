@@ -6,6 +6,7 @@ import {
 } from "../lib/cro-audit/retrieval.ts";
 import { generateAudit } from "../lib/cro-audit/generation.ts";
 import { validateAudit } from "../lib/cro-audit/validation.ts";
+import { generateReplicatedHomepage } from "../lib/cro-audit/replication.ts";
 
 test("buildBalancedPrinciplesQueryText includes the expected page sections", () => {
   const queryText = buildBalancedPrinciplesQueryText({
@@ -255,4 +256,111 @@ test("validateAudit repairs source books and rejects hallucinated findings", () 
   assert.equal(result.sourceCoverage["influence"], 1);
   assert.equal(result.sourceCoverage["Made to Stick"], 1);
   assert.equal(result.collapsedToSingleSource, false);
+});
+
+test("generateReplicatedHomepage retries once on invalid JSON and returns html plus applied changes", async () => {
+  let attempts = 0;
+  let lastPrompt = "";
+
+  const replicated = await generateReplicatedHomepage(
+    {
+      brandTokens: {
+        colors: ["#0f766e", "#7c3aed"],
+        font: { primary: "Space Grotesk", fallbacks: ["Inter"] },
+        voice: {
+          tone: "confident",
+          formality: "neutral",
+          phrases: ["Ship faster"],
+        },
+      },
+      page: {
+        url: "https://example.com/",
+        title: "Ship faster",
+        description: "A platform for teams",
+        headings: { h1: ["Ship faster"], h2: ["Why teams choose us"] },
+        bodyText: "Ship faster with the tools your team already loves.",
+      },
+      findings: [
+        {
+          observation: "The hero lacks social proof near the CTA.",
+          solution: "Add a testimonial block adjacent to the primary CTA.",
+          principle: "Social proof",
+          source_book: "Influence",
+        },
+      ],
+    },
+    {
+      model: {
+        async generateContent(prompt: string) {
+          attempts += 1;
+          lastPrompt = prompt;
+
+          return {
+            response: {
+              text: () =>
+                attempts === 1
+                  ? "{not-json"
+                  : JSON.stringify({
+                      html: "<!doctype html><html><head><style>:root{--brand-primary:#0f766e}</style></head><body><h1>Ship faster</h1><blockquote>Illustrative testimonial</blockquote></body></html>",
+                      applied_changes: [
+                        {
+                          change:
+                            "Added a testimonial block beside the primary CTA.",
+                          finding_principle: "Social proof",
+                          source_book: "Influence",
+                        },
+                      ],
+                    }),
+            },
+          };
+        },
+      },
+    },
+  );
+
+  assert.equal(attempts, 2);
+  assert.match(lastPrompt, /Space Grotesk/);
+  assert.match(lastPrompt, /Social proof/);
+  assert.match(replicated.html, /^<!doctype html>/);
+  assert.deepEqual(replicated.applied_changes, [
+    {
+      change: "Added a testimonial block beside the primary CTA.",
+      finding_principle: "Social proof",
+      source_book: "Influence",
+    },
+  ]);
+});
+
+test("generateReplicatedHomepage rejects a response missing html", async () => {
+  await assert.rejects(
+    generateReplicatedHomepage(
+      {
+        brandTokens: {
+          colors: ["#0f766e"],
+          font: { primary: null, fallbacks: [] },
+          voice: { tone: "", formality: "neutral", phrases: [] },
+        },
+        page: {
+          url: "https://example.com/",
+          title: null,
+          description: null,
+          headings: { h1: [], h2: [] },
+          bodyText: "copy",
+        },
+        findings: [],
+      },
+      {
+        model: {
+          async generateContent() {
+            return {
+              response: {
+                text: () => JSON.stringify({ applied_changes: [] }),
+              },
+            };
+          },
+        },
+      },
+    ),
+    /did not include html/,
+  );
 });
