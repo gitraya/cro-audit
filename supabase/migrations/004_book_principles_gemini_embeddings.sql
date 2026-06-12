@@ -31,7 +31,6 @@ where
   or (explanation is null and content is not null)
   or cro_application is null;
 
-truncate table public.book_principles;
 
 alter table public.book_principles
   drop column if exists principle_name,
