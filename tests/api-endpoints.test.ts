@@ -136,6 +136,16 @@ test("POST /api/audits creates an audit, runs the CRO pipeline, and returns comp
     },
   ];
   const mockPrinciples = [{ book_title: "Influence", principle: "Social proof" }];
+  const mockAppliedChanges = [
+    {
+      change: "Added a testimonial block beside the primary CTA.",
+      finding_principle: "Social proof",
+      source_book: "Influence",
+    },
+  ];
+  const mockHtml =
+    "<!doctype html><html><head><style>:root{--brand-primary:#0f766e}</style></head><body><h1>Example</h1></body></html>";
+  let replicationInput: unknown;
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "  https://example.com  " }),
     client,
@@ -153,6 +163,10 @@ test("POST /api/audits creates an audit, runs the CRO pipeline, and returns comp
         similarity: 0.8,
       })),
     async () => ({ findings: mockFindings }),
+    async (input) => {
+      replicationInput = input;
+      return { html: mockHtml, applied_changes: mockAppliedChanges };
+    },
   );
 
   assert.equal(response.status, 201);
@@ -161,6 +175,8 @@ test("POST /api/audits creates an audit, runs the CRO pipeline, and returns comp
       ...insertedAudit,
       status: "completed",
       findings: mockFindings,
+      generated_html: mockHtml,
+      applied_changes: mockAppliedChanges,
       error_message: null,
     },
   });
@@ -173,9 +189,90 @@ test("POST /api/audits creates an audit, runs the CRO pipeline, and returns comp
   });
   assert.equal(client.calls.update?.id, insertedAudit.id);
   assert.equal(client.calls.update?.values.status, "completed");
+  assert.equal(client.calls.update?.values.generated_html, mockHtml);
+  assert.deepEqual(
+    client.calls.update?.values.applied_changes,
+    mockAppliedChanges,
+  );
+  // Replication receives brand tokens, page content, and the validated findings.
+  assert.deepEqual(replicationInput, {
+    brandTokens: {
+      colors: expectedBrandTokens.colors,
+      font: expectedBrandTokens.font,
+      voice: expectedBrandTokens.voice,
+    },
+    page: {
+      url: scrape.requestedUrl,
+      title: scrape.title,
+      description: scrape.description,
+      headings: { h1: scrape.headings.h1, h2: scrape.headings.h2 },
+      bodyText: scrape.bodyText,
+    },
+    findings: mockFindings,
+  });
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /scrape/);
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /bodyText/);
   assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /html/);
+});
+
+test("POST /api/audits still completes findings when homepage replication fails", async () => {
+  const scrape = createScrapedHomepage({ requestedUrl: "https://example.com/" });
+  const insertedAudit = {
+    id: "audit-1",
+    user_id: authenticatedUser.id,
+    url: scrape.requestedUrl,
+    status: "queued",
+  };
+  const client = createAuditsClient({
+    user: authenticatedUser,
+    insertedAuditData: insertedAudit,
+  });
+  const mockFindings = [
+    {
+      observation: "The hero lacks social proof.",
+      solution: "Add testimonials near the CTA.",
+      principle: "Social proof",
+      source_book: "Influence",
+    },
+  ];
+
+  const response = await createAuditEndpoint(
+    createJsonRequest({ url: "https://example.com" }),
+    client,
+    async () => scrape,
+    undefined,
+    async () => expectedPageSpeedSignals,
+    async () => [
+      {
+        book_title: "Influence",
+        principle: "Social proof",
+        id: "p-1",
+        book_author: "Cialdini",
+        explanation: "People follow others.",
+        cro_application: "Show testimonials.",
+        distance: 0.2,
+        similarity: 0.8,
+      },
+    ],
+    async () => ({ findings: mockFindings }),
+    async () => {
+      throw new Error("replication boom");
+    },
+  );
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), {
+    audit: {
+      ...insertedAudit,
+      status: "completed",
+      findings: mockFindings,
+      generated_html: null,
+      applied_changes: null,
+      error_message: null,
+    },
+  });
+  assert.equal(client.calls.update?.values.status, "completed");
+  assert.equal(client.calls.update?.values.generated_html, null);
 });
 
 test("POST /api/audits starts PageSpeed collection before scrape completes", async () => {
@@ -205,6 +302,7 @@ test("POST /api/audits starts PageSpeed collection before scrape completes", asy
     },
     async () => [],
     async () => ({ findings: [] }),
+    async () => ({ html: "<!doctype html><html></html>", applied_changes: [] }),
   );
 
   assert.equal(response.status, 201);

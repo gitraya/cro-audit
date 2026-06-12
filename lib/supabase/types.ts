@@ -53,6 +53,7 @@ export type Database = {
           pagespeed_data: Json | null;
           findings: Json | null;
           generated_html: string | null;
+          applied_changes: Json | null;
           error_message: string | null;
           created_at: string;
           updated_at: string;
@@ -66,6 +67,7 @@ export type Database = {
           pagespeed_data?: Json | null;
           findings?: Json | null;
           generated_html?: string | null;
+          applied_changes?: Json | null;
           error_message?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -79,6 +81,7 @@ export type Database = {
           pagespeed_data?: Json | null;
           findings?: Json | null;
           generated_html?: string | null;
+          applied_changes?: Json | null;
           error_message?: string | null;
           created_at?: string;
           updated_at?: string;

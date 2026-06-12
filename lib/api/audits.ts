@@ -16,6 +16,11 @@ import {
 } from "../cro-audit/retrieval.ts";
 import { generateAudit, type GeneratedAudit } from "../cro-audit/generation.ts";
 import { validateAudit } from "../cro-audit/validation.ts";
+import {
+  generateReplicatedHomepage,
+  type ReplicatedHomepage,
+  type ReplicationInput,
+} from "../cro-audit/replication.ts";
 import type { AuditStatus, Json } from "../supabase/types.ts";
 
 type EndpointUser = {
@@ -58,6 +63,8 @@ type EndpointSupabaseClient = {
     update: (values: {
       status: AuditStatus;
       findings?: Json | null;
+      generated_html?: string | null;
+      applied_changes?: Json | null;
       error_message?: string | null;
     }) => {
       eq: (column: string, value: string) => QueryResult<unknown>;
@@ -99,6 +106,9 @@ export async function createAuditEndpoint(
     inputs: BalancedPrinciplesInput,
     principles: BalancedPrinciple[],
   ) => Promise<GeneratedAudit> = generateAudit,
+  homepageReplicator: (
+    inputs: ReplicationInput,
+  ) => Promise<ReplicatedHomepage> = generateReplicatedHomepage,
 ) {
   const user = await getAuthenticatedUser(supabase);
 
@@ -160,6 +170,8 @@ export async function createAuditEndpoint(
   let updateValues: {
     status: AuditStatus;
     findings: Json | null;
+    generated_html: string | null;
+    applied_changes: Json | null;
     error_message: string | null;
   };
 
@@ -179,15 +191,48 @@ export async function createAuditEndpoint(
       collapsedToSingleSource,
     });
 
+    // Replication is best-effort: a failure here must not discard valid findings.
+    let generatedHtml: string | null = null;
+    let appliedChanges: Json | null = null;
+
+    try {
+      const replicated = await homepageReplicator({
+        brandTokens: {
+          colors: brandTokens.colors,
+          font: brandTokens.font,
+          voice: brandTokens.voice,
+        },
+        page: {
+          url: scrapedPage.requestedUrl,
+          title: scrapedPage.title,
+          description: scrapedPage.description,
+          headings: {
+            h1: scrapedPage.headings.h1,
+            h2: scrapedPage.headings.h2,
+          },
+          bodyText: scrapedPage.bodyText,
+        },
+        findings: validFindings,
+      });
+      generatedHtml = replicated.html;
+      appliedChanges = replicated.applied_changes as unknown as Json;
+    } catch (replicationError) {
+      console.error("Homepage replication failed: ", replicationError);
+    }
+
     updateValues = {
       status: "completed",
       findings: validFindings as unknown as Json,
+      generated_html: generatedHtml,
+      applied_changes: appliedChanges,
       error_message: null,
     };
   } catch (auditError) {
     updateValues = {
       status: "failed",
       findings: null,
+      generated_html: null,
+      applied_changes: null,
       error_message:
         auditError instanceof Error ? auditError.message : "CRO audit failed",
     };
