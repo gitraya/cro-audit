@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test --experimental-strip-types tests/**/*.test.ts",
-    "db:migrate": "set -a; . ./.env.local; set +a; if [ -z \"$SUPABASE_DB_URL\" ]; then echo \"Missing SUPABASE_DB_URL in .env.local\"; exit 1; fi; psql \"$SUPABASE_DB_URL\" -f supabase/migrations/001_initial_schema.sql"
+    "db:migrate": "set -a; . ./.env.local; set +a; if [ -z \"$SUPABASE_DB_URL\" ]; then echo \"Missing SUPABASE_DB_URL in .env.local\"; exit 1; fi; for migration in supabase/migrations/*.sql; do psql \"$SUPABASE_DB_URL\" -f \"$migration\"; done",
+    "seed:principles": "set -a; . ./.env.local; set +a; node --experimental-strip-types scripts/seed-book-principles.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
