@@ -1,14 +1,10 @@
 import {
-  completeAudit,
   failAudit,
   updateAuditStage,
   type AuditMutationClient,
 } from "../api/audit-repository.ts";
 import { createServiceSupabaseClient } from "../supabase/admin.ts";
-import {
-  extractBrandTokens,
-  type VoiceProvider,
-} from "../brand/extraction.ts";
+import { extractBrandTokens, type VoiceProvider } from "../brand/extraction.ts";
 import { createGeminiVoiceProvider } from "../brand/voice/gemini-provider.ts";
 import {
   getCachedPageSpeedSignals,
@@ -41,15 +37,17 @@ export type AuditPipelineDeps = {
     inputs: BalancedPrinciplesInput,
     principles: BalancedPrinciple[],
   ) => Promise<GeneratedAudit>;
-  homepageReplicator?: (inputs: ReplicationInput) => Promise<ReplicatedHomepage>;
+  homepageReplicator?: (
+    inputs: ReplicationInput,
+  ) => Promise<ReplicatedHomepage>;
 };
 
 /**
  * Runs the full CRO pipeline for an already-inserted audit row (status queued,
  * stage 'scraping'). Designed to run AFTER the HTTP response is sent. It updates
  * `stage` as each step completes and always reaches a terminal state:
- * completeAudit on success, failAudit on any thrown stage. It never rethrows, so
- * the background task cannot hang the request.
+ * updateAuditStage with status: completed on success, failAudit on any thrown stage. It never rethrows,
+ * so the background task cannot hang the request.
  */
 export async function runAuditPipeline(
   auditId: string,
@@ -60,10 +58,13 @@ export async function runAuditPipeline(
     deps.supabase ??
     (createServiceSupabaseClient() as unknown as AuditMutationClient);
   const scraper = deps.scraper ?? scrapeHomepage;
-  const pageSpeedCollector = deps.pageSpeedCollector ?? getCachedPageSpeedSignals;
-  const principleRetriever = deps.principleRetriever ?? retrieveBalancedPrinciples;
+  const pageSpeedCollector =
+    deps.pageSpeedCollector ?? getCachedPageSpeedSignals;
+  const principleRetriever =
+    deps.principleRetriever ?? retrieveBalancedPrinciples;
   const auditGenerator = deps.auditGenerator ?? generateAudit;
-  const homepageReplicator = deps.homepageReplicator ?? generateReplicatedHomepage;
+  const homepageReplicator =
+    deps.homepageReplicator ?? generateReplicatedHomepage;
 
   try {
     // Stage 'scraping' is set at insert time. Start both network calls together.
@@ -71,14 +72,29 @@ export async function runAuditPipeline(
     const scrapePromise = scraper(submittedUrl);
     const scrapedPage = await scrapePromise;
 
-    await updateAuditStage(auditId, "analyzing_performance", supabase);
+    await updateAuditStage(
+      auditId,
+      { stage: "analyzing_performance" },
+      supabase,
+    );
     const pageSpeedData = await pageSpeedPromise;
 
-    await updateAuditStage(auditId, "extracting_brand", supabase);
+    await updateAuditStage(
+      auditId,
+      {
+        stage: "extracting_brand",
+        pagespeed_data: (pageSpeedData ?? null) as unknown as Json,
+      },
+      supabase,
+    );
     const voiceProvider = deps.voiceProvider ?? createGeminiVoiceProvider();
     const brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
 
-    await updateAuditStage(auditId, "auditing", supabase);
+    await updateAuditStage(
+      auditId,
+      { stage: "auditing", brand_tokens: brandTokens as unknown as Json },
+      supabase,
+    );
     const inputs: BalancedPrinciplesInput = {
       title: scrapedPage.title,
       description: scrapedPage.description,
@@ -89,6 +105,8 @@ export async function runAuditPipeline(
         : null,
     };
     const principles = await principleRetriever(inputs);
+    console.log("Found book principles: ", principles);
+
     const generated = await auditGenerator(inputs, principles);
     const {
       validFindings,
@@ -103,7 +121,11 @@ export async function runAuditPipeline(
       collapsedToSingleSource,
     });
 
-    await updateAuditStage(auditId, "generating", supabase);
+    await updateAuditStage(
+      auditId,
+      { stage: "generating", findings: validFindings as unknown as Json },
+      supabase,
+    );
 
     // Replication is best-effort: a failure here must not discard valid findings.
     let generatedHtml: string | null = null;
@@ -134,13 +156,13 @@ export async function runAuditPipeline(
       console.error("Homepage replication failed: ", replicationError);
     }
 
-    await completeAudit(
+    await updateAuditStage(
       auditId,
       {
+        status: "completed",
+        stage: "done",
+        error_message: null,
         url: scrapedPage.requestedUrl,
-        brand_tokens: brandTokens as unknown as Json,
-        pagespeed_data: (pageSpeedData ?? null) as unknown as Json,
-        findings: validFindings as unknown as Json,
         generated_html: generatedHtml,
         applied_changes: appliedChanges,
       },

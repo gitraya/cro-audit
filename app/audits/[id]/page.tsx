@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { AuditProgress } from "./audit-progress";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { BrandTokens } from "@/lib/brand/extraction";
 import type { PageSpeedSignals } from "@/lib/pagespeed/client";
@@ -62,6 +63,11 @@ export default async function AuditPage({ params }: AuditPageProps) {
   const appliedChanges = (audit.applied_changes ?? []) as AppliedChange[];
   const isPending = audit.status === "queued" || audit.status === "running";
   const isFailed = audit.status === "failed";
+  const findingsEmptyMessage = isPending
+    ? "Findings will appear here as the audit runs."
+    : isFailed
+      ? "No findings were recorded because the audit failed."
+      : "No findings were recorded for this audit.";
 
   return (
     <main className="min-h-screen bg-neutral-50 px-6 py-12 text-neutral-950">
@@ -83,26 +89,21 @@ export default async function AuditPage({ params }: AuditPageProps) {
           </p>
         </header>
 
-        {isPending ? (
-          <div className="mt-8 border border-amber-200 bg-amber-50 p-5">
-            <h2 className="text-base font-semibold text-amber-900">
-              Audit in progress
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-amber-900">
-              {audit.stage
-                ? `Currently ${audit.stage.replace(/_/g, " ")}. `
-                : ""}
-              This page will show findings once the audit finishes.
-            </p>
-          </div>
-        ) : null}
+        <AuditProgress
+          url={audit.url}
+          status={audit.status}
+          stage={audit.stage}
+        />
 
         {isFailed ? (
           <div className="mt-8 border border-red-200 bg-red-50 p-5">
             <h2 className="text-base font-semibold text-red-800">
               This audit failed
             </h2>
-            <p className="mt-2 text-sm leading-6 text-red-700">
+            <p
+              className="mt-2 text-sm leading-6 text-red-700"
+              style={{ wordBreak: "break-word" }}
+            >
               {audit.error_message ??
                 "Something went wrong while running the audit."}
             </p>
@@ -145,13 +146,11 @@ export default async function AuditPage({ params }: AuditPageProps) {
                 </li>
               ))}
             </ul>
-          ) : !isPending && !isFailed ? (
+          ) : (
             <div className="mt-4 border border-dashed border-neutral-300 bg-white px-5 py-10 text-center">
-              <p className="text-sm text-neutral-500">
-                No findings were recorded for this audit.
-              </p>
+              <p className="text-sm text-neutral-500">{findingsEmptyMessage}</p>
             </div>
-          ) : null}
+          )}
         </section>
 
         <section className="mt-12">
@@ -179,7 +178,8 @@ export default async function AuditPage({ params }: AuditPageProps) {
                 Applied changes
               </h3>
               <p className="mt-1 text-sm text-neutral-500">
-                What changed on the generated page, and the principle behind each.
+                What changed on the generated page, and the principle behind
+                each.
               </p>
               <ul className="mt-4 space-y-3">
                 {appliedChanges.map((applied, index) => (
@@ -208,7 +208,9 @@ export default async function AuditPage({ params }: AuditPageProps) {
 
         <section className="mt-12 grid items-start gap-6 lg:grid-cols-2">
           <BrandTokensPanel tokens={audit.brand_tokens as BrandTokens | null} />
-          <PageSpeedPanel signals={audit.pagespeed_data as PageSpeedSignals | null} />
+          <PageSpeedPanel
+            signals={audit.pagespeed_data as PageSpeedSignals | null}
+          />
         </section>
       </div>
     </main>
@@ -242,7 +244,8 @@ function StatusBadge({
   );
 }
 
-const PANEL_LABEL = "text-xs font-medium uppercase tracking-wide text-neutral-500";
+const PANEL_LABEL =
+  "text-xs font-medium uppercase tracking-wide text-neutral-500";
 
 const RATING_STYLES: Record<string, string> = {
   good: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -336,7 +339,10 @@ function BrandTokensPanel({ tokens }: { tokens: BrandTokens | null }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {voice?.tone ? (
               <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
-                Tone: <span className="font-medium text-neutral-900">{voice.tone}</span>
+                Tone:{" "}
+                <span className="font-medium text-neutral-900">
+                  {voice.tone}
+                </span>
               </span>
             ) : null}
             {voice?.formality ? (
@@ -379,7 +385,10 @@ function PageSpeedPanel({ signals }: { signals: PageSpeedSignals | null }) {
   }
 
   const { scores, coreWebVitals, topIssues } = signals;
-  const vitals: Array<{ label: string; signal: PageSpeedSignals["coreWebVitals"]["lcp"] }> = [
+  const vitals: Array<{
+    label: string;
+    signal: PageSpeedSignals["coreWebVitals"]["lcp"];
+  }> = [
     { label: "LCP", signal: coreWebVitals.lcp },
     { label: "CLS", signal: coreWebVitals.cls },
     { label: "TBT", signal: coreWebVitals.tbt },
@@ -442,13 +451,7 @@ function PageSpeedPanel({ signals }: { signals: PageSpeedSignals | null }) {
   );
 }
 
-function ScoreStat({
-  label,
-  score,
-}: {
-  label: string;
-  score: number | null;
-}) {
+function ScoreStat({ label, score }: { label: string; score: number | null }) {
   const color =
     score == null
       ? "text-neutral-400"

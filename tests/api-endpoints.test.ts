@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  createAuditEndpoint,
-  getAuditStatusEndpoint,
-  getAuditsEndpoint,
-} from "../lib/api/audits.ts";
+import { createAuditEndpoint, getAuditsEndpoint } from "../lib/api/audits.ts";
 import { getUserEndpoint } from "../lib/api/user.ts";
 
 const authenticatedUser = {
@@ -175,40 +171,6 @@ test("POST /api/audits returns 500 when audit insert fails", async () => {
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: "insert failed" });
   assert.equal(scheduledCount, 0);
-});
-
-test("GET /api/audits/[id]/status returns 401 without an authenticated user", async () => {
-  const response = await getAuditStatusEndpoint(
-    createAuditsClient({ user: null }),
-    "audit-1",
-  );
-
-  assert.equal(response.status, 401);
-  assert.deepEqual(await response.json(), { error: "Unauthorized" });
-});
-
-test("GET /api/audits/[id]/status returns only status and stage for the owner", async () => {
-  const client = createAuditsClient({
-    user: authenticatedUser,
-    statusData: { status: "queued", stage: "auditing" },
-  });
-  const response = await getAuditStatusEndpoint(client, "audit-1");
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {
-    status: "queued",
-    stage: "auditing",
-  });
-});
-
-test("GET /api/audits/[id]/status returns 404 when the audit is not visible", async () => {
-  const response = await getAuditStatusEndpoint(
-    createAuditsClient({ user: authenticatedUser, statusData: null }),
-    "missing",
-  );
-
-  assert.equal(response.status, 404);
-  assert.deepEqual(await response.json(), { error: "Not found" });
 });
 
 function createJsonRequest(body: unknown) {

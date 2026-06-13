@@ -1,6 +1,5 @@
 import { jsonResponse } from "./responses.ts";
 import { runAuditPipeline } from "../cro-audit/pipeline.ts";
-import type { AuditStage, AuditStatus } from "../supabase/types.ts";
 
 type EndpointUser = {
   id: string;
@@ -71,33 +70,6 @@ export async function getAuditsEndpoint(supabase: EndpointSupabaseClient) {
   }
 
   return jsonResponse({ audits: data });
-}
-
-// Lightweight poll target: returns only { status, stage }, scoped to the owner
-// (RLS on the user-scoped client). Never returns the heavy html/findings.
-export async function getAuditStatusEndpoint(
-  supabase: EndpointSupabaseClient,
-  auditId: string,
-) {
-  const user = await getAuthenticatedUser(supabase);
-
-  if (!user) {
-    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data, error } = await supabase
-    .from("audits")
-    .select("status,stage")
-    .eq!("id", auditId)
-    .single();
-
-  if (error || !data) {
-    return jsonResponse({ error: "Not found" }, { status: 404 });
-  }
-
-  const row = data as { status: AuditStatus; stage: AuditStage | null };
-
-  return jsonResponse({ status: row.status, stage: row.stage });
 }
 
 // Async kick-off: creates the audit row and schedules the pipeline to keep

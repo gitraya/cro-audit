@@ -75,7 +75,7 @@ export default async function DashboardPage() {
             </h1>
           </div>
           <form action={signOut}>
-            <button className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium hover:bg-neutral-50">
+            <button className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium hover:bg-neutral-50 cursor-pointer">
               Log out
             </button>
           </form>

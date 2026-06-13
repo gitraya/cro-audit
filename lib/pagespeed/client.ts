@@ -72,7 +72,7 @@ type PageSpeedCacheRow = {
 
 const PAGESPEED_ENDPOINT =
   "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
-const PAGESPEED_TIMEOUT_MS = 100_000; // TODO FIND A BETTER WAY
+const PAGESPEED_TIMEOUT_MS = 45_000;
 const TOP_ISSUE_LIMIT = 6;
 
 const metricAuditIds = {
