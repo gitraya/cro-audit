@@ -54,10 +54,15 @@ test("runAuditPipeline advances every stage and completes with artifacts", async
   assert.equal(terminal.values.status, "completed");
   assert.equal(terminal.values.stage, "done");
   assert.equal(terminal.values.error_message, null);
-  assert.deepEqual(terminal.values.findings, mockFindings);
   assert.equal(terminal.values.generated_html, mockHtml);
   assert.deepEqual(terminal.values.applied_changes, mockAppliedChanges);
   assert.equal(terminal.values.url, "https://example.com/");
+
+  const findingsUpdate = client.updates.find(
+    (entry) => entry.values.stage === "generating",
+  );
+  assert.ok(findingsUpdate);
+  assert.deepEqual(findingsUpdate.values.findings, mockFindings);
 
   // The replicator receives the validated findings and brand-derived tokens.
   assert.equal(replicationInputs.length, 1);
@@ -119,9 +124,14 @@ test("runAuditPipeline still completes when replication fails", async () => {
 
   const terminal = client.updates.at(-1)!;
   assert.equal(terminal.values.status, "completed");
-  assert.deepEqual(terminal.values.findings, mockFindings);
   assert.equal(terminal.values.generated_html, null);
   assert.equal(terminal.values.applied_changes, null);
+
+  const findingsUpdate = client.updates.find(
+    (entry) => entry.values.stage === "generating",
+  );
+  assert.ok(findingsUpdate);
+  assert.deepEqual(findingsUpdate.values.findings, mockFindings);
 });
 
 test("runAuditPipeline marks the audit failed when a stage throws", async () => {
