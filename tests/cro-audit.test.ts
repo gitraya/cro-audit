@@ -273,6 +273,12 @@ test("generateReplicatedHomepage retries once on invalid JSON and returns html p
           phrases: ["Ship faster"],
         },
       },
+      layoutHints: {
+        background_color: "#ffffff",
+        text_color: "#0f172a",
+        is_dark_theme: false,
+        hero_alignment: "center",
+      },
       page: {
         url: "https://example.com/",
         title: "Ship faster",
@@ -321,6 +327,8 @@ test("generateReplicatedHomepage retries once on invalid JSON and returns html p
   assert.equal(attempts, 2);
   assert.match(lastPrompt, /Space Grotesk/);
   assert.match(lastPrompt, /Social proof/);
+  assert.match(lastPrompt, /layoutHints/);
+  assert.match(lastPrompt, /is_dark_theme/);
   assert.match(replicated.html, /^<!doctype html>/);
   assert.deepEqual(replicated.applied_changes, [
     {
@@ -339,6 +347,12 @@ test("generateReplicatedHomepage rejects a response missing html", async () => {
           colors: ["#0f766e"],
           font: { primary: null, fallbacks: [] },
           voice: { tone: "", formality: "neutral", phrases: [] },
+        },
+        layoutHints: {
+          background_color: null,
+          text_color: null,
+          is_dark_theme: false,
+          hero_alignment: "unknown",
         },
         page: {
           url: "https://example.com/",

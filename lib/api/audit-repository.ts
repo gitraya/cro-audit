@@ -7,6 +7,7 @@ type AuditUpdateValues = {
   url?: string;
   brand_tokens?: Json | null;
   pagespeed_data?: Json | null;
+  layout_hints?: Json | null;
   findings?: Json | null;
   generated_html?: string | null;
   applied_changes?: Json | null;
@@ -28,6 +29,7 @@ export type CompletedAuditArtifacts = {
   url?: string;
   brand_tokens?: Json | null;
   pagespeed_data?: Json | null;
+  layout_hints?: Json | null;
   findings: Json;
   generated_html: string | null;
   applied_changes: Json | null;

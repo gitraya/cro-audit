@@ -29,6 +29,15 @@ export type ReplicationBrandTokens = {
   };
 };
 
+// Deterministic LAYOUT signals (separate from brand identity) so the model can
+// match the original's light/dark orientation and hero alignment.
+export type ReplicationLayoutHints = {
+  background_color: string | null;
+  text_color: string | null;
+  is_dark_theme: boolean;
+  hero_alignment: "left" | "center" | "unknown";
+};
+
 export type ReplicationPage = {
   url: string;
   title: string | null;
@@ -49,6 +58,7 @@ export type ReplicationFinding = {
 
 export type ReplicationInput = {
   brandTokens: ReplicationBrandTokens;
+  layoutHints: ReplicationLayoutHints;
   page: ReplicationPage;
   findings: ReplicationFinding[];
 };
@@ -88,6 +98,7 @@ const SYSTEM_INSTRUCTION = [
   // NEW: explicit layout/composition preservation — this is what 'feel' actually is.
   "PRESERVE THE ORIGINAL LAYOUT AND COMPOSITION — this is the most important rule for matching the site's feel:",
   "- Match the original's light/dark orientation. If the original has a light background with dark text, your page MUST also have a light background with dark text (and vice versa). Do NOT default to a dark hero.",
+  "- Use the provided layoutHints as the deterministic ground truth: when is_dark_theme is true use a dark background with light text, when false use a light background with dark text; treat background_color and text_color as the base page palette, and apply hero_alignment to the headline (left vs center) unless it is 'unknown'.",
   "- Match the original's text alignment and hero composition (e.g. left-aligned headline vs centered).",
   "- Preserve the original's SECTION ORDER and structure: recreate the same major sections in the same order (e.g. nav, hero, partner/logo strip, features, social proof, pricing, footer) based on the provided page structure.",
   "- Keep the visual density and spacing similar to the original (airy vs compact).",
@@ -195,6 +206,7 @@ function buildReplicationPrompt(inputs: ReplicationInput) {
         font: inputs.brandTokens.font,
         voice: inputs.brandTokens.voice,
       },
+      layoutHints: inputs.layoutHints,
       page: {
         url: inputs.page.url,
         title: inputs.page.title,

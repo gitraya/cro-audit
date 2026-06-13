@@ -1,4 +1,4 @@
-import type { ScrapedHomepage } from "../scraper/homepage.ts";
+import type { HeroComposition, ScrapedHomepage } from "../scraper/homepage.ts";
 import { normalizedCacheKey } from "../url/cache-key.ts";
 import { readCachedVoice, writeCachedVoice } from "./voice-cache.ts";
 
@@ -21,6 +21,15 @@ export type BrandTokens = {
 };
 
 export type VoiceTokens = BrandTokens["voice"];
+
+// LAYOUT signals (light/dark orientation + alignment) — NOT brand identity.
+// Kept separate from BrandTokens and fed to the homepage generation stage.
+export type LayoutHints = {
+  background_color: string | null;
+  text_color: string | null;
+  is_dark_theme: boolean;
+  hero_alignment: "left" | "center" | "unknown";
+};
 
 export type VoiceProvider = (input: {
   url: string;
@@ -265,6 +274,276 @@ export function extractFont(cssText: string): BrandTokens["font"] {
     primary: rankedFamilies[0] ?? null,
     fallbacks: rankedFamilies.slice(1, 5),
   };
+}
+
+// Deterministic page-composition signals for the generation stage. Reuses the
+// same CSS color parsing as extractColors — no new parser. Same CSS in, same
+// hints out; null/"unknown" when a signal cannot be determined (no fallbacks).
+export function extractLayoutHints(
+  cssText: string,
+  hero?: HeroComposition,
+): LayoutHints {
+  const cssVariables = extractColorVariables(cssText);
+  const background = extractDominantColor(cssText, cssVariables, "background");
+  const text = extractDominantColor(cssText, cssVariables, "text");
+
+  return {
+    background_color: background?.hex ?? null,
+    text_color: text?.hex ?? null,
+    is_dark_theme: background ? relativeLuminance(background) < 0.5 : false,
+    hero_alignment: resolveHeroAlignment(cssText, hero),
+  };
+}
+
+// Alignment resolution, strongest signal first: inline text-align on the hero or
+// an ancestor, then utility classes (text-center / has-text-centered / flex
+// centering — the common framework patterns), then a CSS-selector match.
+function resolveHeroAlignment(
+  cssText: string,
+  hero?: HeroComposition,
+): LayoutHints["hero_alignment"] {
+  if (hero?.inlineTextAlign) {
+    const mapped = mapTextAlign(hero.inlineTextAlign);
+
+    if (mapped !== "unknown") {
+      return mapped;
+    }
+  }
+
+  if (hero?.classNames.length) {
+    const fromClasses = alignmentFromClasses(hero.classNames);
+
+    if (fromClasses !== "unknown") {
+      return fromClasses;
+    }
+  }
+
+  return alignmentFromCss(cssText);
+}
+
+function mapTextAlign(value: string): LayoutHints["hero_alignment"] {
+  if (value === "center") {
+    return "center";
+  }
+
+  return value === "left" || value === "start" ? "left" : "unknown";
+}
+
+// classNames are ordered nearest-first (h1 → ancestors). Explicit text-* classes
+// win over flex/box centering; the first hit nearest the h1 wins.
+function alignmentFromClasses(
+  classNames: string[],
+): LayoutHints["hero_alignment"] {
+  for (const token of classNames) {
+    if (isCenterTextClass(token)) {
+      return "center";
+    }
+
+    if (isLeftTextClass(token)) {
+      return "left";
+    }
+  }
+
+  for (const token of classNames) {
+    if (isCenterBoxClass(token)) {
+      return "center";
+    }
+  }
+
+  return "unknown";
+}
+
+function isCenterTextClass(token: string) {
+  return (
+    /^(?:[\w-]+:)?text-center$/.test(token) ||
+    /^text-(?:sm|md|lg|xl|xxl)-center$/.test(token) ||
+    token === "has-text-centered" ||
+    token === "centered"
+  );
+}
+
+function isLeftTextClass(token: string) {
+  return (
+    /^(?:[\w-]+:)?text-(?:left|start)$/.test(token) ||
+    /^text-(?:sm|md|lg|xl|xxl)-(?:left|start)$/.test(token) ||
+    token === "has-text-left"
+  );
+}
+
+function isCenterBoxClass(token: string) {
+  return (
+    /^(?:[\w-]+:)?(?:justify|items|content|place-items|place-content|self)-center$/.test(
+      token,
+    ) || /^(?:[\w-]+:)?mx-auto$/.test(token)
+  );
+}
+
+function extractDominantColor(
+  cssText: string,
+  cssVariables: Map<string, Color>,
+  kind: "background" | "text",
+): Color | null {
+  const candidates = new Map<
+    string,
+    { score: number; firstIndex: number; color: Color }
+  >();
+  const declarationRegex = /([-\w]+)\s*:\s*([^;{}]+)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = declarationRegex.exec(cssText))) {
+    const property = match[1].toLowerCase();
+    const matchesKind =
+      kind === "background"
+        ? property === "background" || property === "background-color"
+        : property === "color";
+
+    if (!matchesKind) {
+      continue;
+    }
+
+    const color = firstColorInValue(match[2], cssVariables);
+
+    if (!color || color.alpha < 0.2) {
+      continue;
+    }
+
+    const selector = selectorContext(cssText, match.index);
+    const score =
+      kind === "background"
+        ? backgroundSelectorScore(selector)
+        : textSelectorScore(selector);
+    const existing = candidates.get(color.hex);
+
+    if (!existing) {
+      candidates.set(color.hex, { score, firstIndex: match.index, color });
+      continue;
+    }
+
+    existing.score += score;
+    existing.firstIndex = Math.min(existing.firstIndex, match.index);
+  }
+
+  const ranked = [...candidates.values()].sort(
+    (a, b) =>
+      b.score - a.score ||
+      a.firstIndex - b.firstIndex ||
+      a.color.hex.localeCompare(b.color.hex),
+  );
+
+  return ranked[0]?.color ?? null;
+}
+
+function backgroundSelectorScore(selector: string) {
+  if (/(^|[\s,>~+])(body|html|:root)\b/.test(selector)) return 8;
+  if (/(wrapper|page|layout|site|container|main|app|root)/.test(selector)) {
+    return 4;
+  }
+  if (/(hero|header|nav|banner|masthead|jumbotron|section|top)/.test(selector)) {
+    return 2;
+  }
+  return 1;
+}
+
+function textSelectorScore(selector: string) {
+  if (/(^|[\s,>~+])(body|html|:root)\b/.test(selector)) return 8;
+  if (/(^|[\s,>~+])p\b/.test(selector)) return 4;
+  if (/(text|content|prose|article|paragraph|copy)/.test(selector)) return 3;
+  return 1;
+}
+
+function firstColorInValue(
+  value: string,
+  cssVariables: Map<string, Color>,
+): Color | null {
+  const tokens: Array<{ index: number; color: Color }> = [];
+
+  for (const match of value.matchAll(
+    /#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})\b/gi,
+  )) {
+    const color = parseCssColor(match[0]);
+    if (color) tokens.push({ index: match.index ?? 0, color });
+  }
+
+  for (const match of value.matchAll(/rgba?\(\s*[^)]+\)/gi)) {
+    const color = parseCssColor(match[0]);
+    if (color) tokens.push({ index: match.index ?? 0, color });
+  }
+
+  for (const match of value.matchAll(/hsla?\(\s*[^)]+\)/gi)) {
+    const color = parseCssColor(match[0]);
+    if (color) tokens.push({ index: match.index ?? 0, color });
+  }
+
+  for (const match of value.matchAll(/var\(\s*(--[-\w]+)[^)]*\)/g)) {
+    const color = cssVariables.get(match[1]);
+    if (color) tokens.push({ index: match.index ?? 0, color });
+  }
+
+  if (tokens.length === 0) {
+    return null;
+  }
+
+  tokens.sort((a, b) => a.index - b.index);
+  return tokens[0].color;
+}
+
+// CSS-selector fallback: read text-align off a rule whose selector names a
+// hero/h1 container. Best-effort only — do not overengineer.
+function alignmentFromCss(cssText: string): LayoutHints["hero_alignment"] {
+  let best: { score: number; index: number; value: "left" | "center" } | null =
+    null;
+  const regex = /text-align\s*:\s*([a-z-]+)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(cssText))) {
+    const selector = selectorContext(cssText, match.index);
+
+    if (
+      !/(hero|banner|masthead|jumbotron|headline|intro|header|h1)/.test(selector)
+    ) {
+      continue;
+    }
+
+    const align = match[1].toLowerCase();
+    const value =
+      align === "center"
+        ? "center"
+        : align === "left" || align === "start"
+          ? "left"
+          : null;
+
+    if (!value) {
+      continue;
+    }
+
+    const score = /(hero|headline|jumbotron|masthead)/.test(selector)
+      ? 3
+      : /(banner|intro|h1)/.test(selector)
+        ? 2
+        : 1;
+
+    if (
+      !best ||
+      score > best.score ||
+      (score === best.score && match.index < best.index)
+    ) {
+      best = { score, index: match.index, value };
+    }
+  }
+
+  return best?.value ?? "unknown";
+}
+
+// WCAG relative luminance from the parsed sRGB color (0 = black, 1 = white).
+function relativeLuminance({ red, green, blue }: Color) {
+  const channel = (value: number) => {
+    const srgb = value / 255;
+    return srgb <= 0.03928
+      ? srgb / 12.92
+      : Math.pow((srgb + 0.055) / 1.055, 2.4);
+  };
+
+  return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
 }
 
 function isFontFamilyDeclaration(property: string) {
