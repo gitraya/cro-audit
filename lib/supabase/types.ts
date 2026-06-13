@@ -62,6 +62,7 @@ export type Database = {
           stage: AuditStage | null;
           brand_tokens: Json | null;
           pagespeed_data: Json | null;
+          layout_hints: Json | null;
           findings: Json | null;
           generated_html: string | null;
           applied_changes: Json | null;
@@ -77,6 +78,7 @@ export type Database = {
           stage?: AuditStage | null;
           brand_tokens?: Json | null;
           pagespeed_data?: Json | null;
+          layout_hints?: Json | null;
           findings?: Json | null;
           generated_html?: string | null;
           applied_changes?: Json | null;
@@ -92,6 +94,7 @@ export type Database = {
           stage?: AuditStage | null;
           brand_tokens?: Json | null;
           pagespeed_data?: Json | null;
+          layout_hints?: Json | null;
           findings?: Json | null;
           generated_html?: string | null;
           applied_changes?: Json | null;

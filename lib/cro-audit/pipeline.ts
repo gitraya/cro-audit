@@ -4,7 +4,11 @@ import {
   type AuditMutationClient,
 } from "../api/audit-repository.ts";
 import { createServiceSupabaseClient } from "../supabase/admin.ts";
-import { extractBrandTokens, type VoiceProvider } from "../brand/extraction.ts";
+import {
+  extractBrandTokens,
+  extractLayoutHints,
+  type VoiceProvider,
+} from "../brand/extraction.ts";
 import { createGeminiVoiceProvider } from "../brand/voice/gemini-provider.ts";
 import {
   getCachedPageSpeedSignals,
@@ -89,10 +93,20 @@ export async function runAuditPipeline(
     );
     const voiceProvider = deps.voiceProvider ?? createGeminiVoiceProvider();
     const brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
+    // Layout signals reuse the same parsed CSS plus the scraped hero DOM
+    // composition; kept separate from brand_tokens.
+    const layoutHints = extractLayoutHints(
+      scrapedPage.styles.cssText,
+      scrapedPage.hero,
+    );
 
     await updateAuditStage(
       auditId,
-      { stage: "auditing", brand_tokens: brandTokens as unknown as Json },
+      {
+        stage: "auditing",
+        brand_tokens: brandTokens as unknown as Json,
+        layout_hints: layoutHints as unknown as Json,
+      },
       supabase,
     );
     const inputs: BalancedPrinciplesInput = {
@@ -138,6 +152,7 @@ export async function runAuditPipeline(
           font: brandTokens.font,
           voice: brandTokens.voice,
         },
+        layoutHints,
         page: {
           url: scrapedPage.requestedUrl,
           title: scrapedPage.title,

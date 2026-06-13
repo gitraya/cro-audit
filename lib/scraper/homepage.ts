@@ -27,6 +27,15 @@ export type ScrapedHomepage = {
     externalStylesheetCount: number;
     cssText: string;
   };
+  hero: HeroComposition;
+};
+
+// DOM-derived hero composition signals: the class tokens on the first <h1> and
+// its ancestor chain (nearest first), plus any inline text-align. Used to derive
+// hero_alignment when alignment comes from utility classes rather than CSS.
+export type HeroComposition = {
+  classNames: string[];
+  inlineTextAlign: string | null;
 };
 
 type StylesheetSource = {
@@ -176,7 +185,45 @@ export function parseHomepage(
       externalStylesheetCount: externalStylesheets.length,
       cssText,
     },
+    hero: collectHeroComposition($),
   };
+}
+
+function collectHeroComposition($: cheerio.CheerioAPI): HeroComposition {
+  const heading = $("h1").first();
+
+  if (heading.length === 0) {
+    return { classNames: [], inlineTextAlign: null };
+  }
+
+  // Nearest first: the <h1> itself, then each ancestor up to <html>.
+  const elements = [heading, ...heading.parents().toArray().map((el) => $(el))];
+  const classNames: string[] = [];
+  let inlineTextAlign: string | null = null;
+
+  for (const element of elements) {
+    const classAttr = element.attr("class");
+
+    if (classAttr) {
+      for (const token of classAttr.toLowerCase().split(/\s+/)) {
+        if (token) {
+          classNames.push(token);
+        }
+      }
+    }
+
+    if (!inlineTextAlign) {
+      const match = (element.attr("style") ?? "").match(
+        /text-align\s*:\s*([a-z-]+)/i,
+      );
+
+      if (match) {
+        inlineTextAlign = match[1].toLowerCase();
+      }
+    }
+  }
+
+  return { classNames: [...new Set(classNames)].slice(0, 60), inlineTextAlign };
 }
 
 async function fetchExternalStylesheets(initialHrefs: string[]) {

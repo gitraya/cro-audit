@@ -109,3 +109,47 @@ test("parseHomepage folds external stylesheet CSS into transient scrape data", (
   assert.match(scraped.styles.cssText, /--brand-primary: #0f766e/);
   assert.doesNotMatch(JSON.stringify(scraped), /brandTokens/);
 });
+
+test("parseHomepage captures hero composition from the h1 ancestor chain", () => {
+  const html = `
+    <!doctype html>
+    <html>
+      <body>
+        <header class="site-nav">nav</header>
+        <section class="hero">
+          <div class="container mx-auto text-center">
+            <div class="hero__inner">
+              <h1 class="display">Grow faster</h1>
+            </div>
+          </div>
+        </section>
+      </body>
+    </html>
+  `;
+
+  const scraped = parseHomepage(html, "https://example.com");
+
+  // Class tokens collected nearest-first from the h1 up its ancestors.
+  assert.deepEqual(scraped.hero.inlineTextAlign, null);
+  assert.ok(scraped.hero.classNames.includes("text-center"));
+  assert.ok(scraped.hero.classNames.includes("hero"));
+  // h1's own class comes before the ancestor wrapper's classes.
+  assert.ok(
+    scraped.hero.classNames.indexOf("display") <
+      scraped.hero.classNames.indexOf("text-center"),
+  );
+});
+
+test("parseHomepage reads an inline text-align on a hero ancestor", () => {
+  const html = `
+    <body>
+      <div style="text-align: center">
+        <h1>Centered headline</h1>
+      </div>
+    </body>
+  `;
+
+  const scraped = parseHomepage(html, "https://example.com");
+
+  assert.equal(scraped.hero.inlineTextAlign, "center");
+});

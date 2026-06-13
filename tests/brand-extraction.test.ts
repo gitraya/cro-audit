@@ -4,8 +4,112 @@ import {
   extractBrandTokens,
   extractColors,
   extractFont,
+  extractLayoutHints,
 } from "../lib/brand/extraction.ts";
 import type { ScrapedHomepage } from "../lib/scraper/homepage.ts";
+
+test("extractLayoutHints reads a light theme with left-aligned hero deterministically", () => {
+  const cssText = `
+    :root { --brand: #2563eb; }
+    body { background-color: #ffffff; color: #111827; }
+    .hero { text-align: left; }
+  `;
+
+  const hints = extractLayoutHints(cssText);
+
+  assert.deepEqual(hints, {
+    background_color: "#ffffff",
+    text_color: "#111827",
+    is_dark_theme: false,
+    hero_alignment: "left",
+  });
+  assert.deepEqual(extractLayoutHints(cssText), hints);
+});
+
+test("extractLayoutHints detects a dark theme and centered hero", () => {
+  const cssText = `
+    html, body { background: #0b1120 url(/bg.png) no-repeat; color: #e5e7eb; }
+    .hero__headline { text-align: center; }
+  `;
+
+  const hints = extractLayoutHints(cssText);
+
+  assert.equal(hints.background_color, "#0b1120");
+  assert.equal(hints.text_color, "#e5e7eb");
+  assert.equal(hints.is_dark_theme, true);
+  assert.equal(hints.hero_alignment, "center");
+});
+
+test("extractLayoutHints resolves background from CSS color variables", () => {
+  const cssText = `
+    :root { --page-bg: #18181b; --page-fg: #fafafa; }
+    body { background-color: var(--page-bg); color: var(--page-fg); }
+  `;
+
+  const hints = extractLayoutHints(cssText);
+
+  assert.equal(hints.background_color, "#18181b");
+  assert.equal(hints.text_color, "#fafafa");
+  assert.equal(hints.is_dark_theme, true);
+});
+
+test("extractLayoutHints invents nothing when signals are absent", () => {
+  const hints = extractLayoutHints(".btn { padding: 8px; }");
+
+  assert.deepEqual(hints, {
+    background_color: null,
+    text_color: null,
+    is_dark_theme: false,
+    hero_alignment: "unknown",
+  });
+});
+
+test("extractLayoutHints reads hero alignment from a utility class on an ancestor", () => {
+  // The class lives on an ancestor wrapper, not the h1 — the common Tailwind case
+  // the CSS-only path misses.
+  const hints = extractLayoutHints("body { background: #ffffff; color: #111; }", {
+    classNames: ["mx-auto", "max-w-3xl", "text-center"],
+    inlineTextAlign: null,
+  });
+
+  assert.equal(hints.hero_alignment, "center");
+});
+
+test("extractLayoutHints prefers an inline text-align over utility classes", () => {
+  const hints = extractLayoutHints("", {
+    classNames: ["text-center"],
+    inlineTextAlign: "left",
+  });
+
+  assert.equal(hints.hero_alignment, "left");
+});
+
+test("extractLayoutHints picks the nearest explicit text-* class over flex centering", () => {
+  // Nearest-first: h1 has text-left; an ancestor has justify-center.
+  const hints = extractLayoutHints("", {
+    classNames: ["text-left", "flex", "justify-center"],
+    inlineTextAlign: null,
+  });
+
+  assert.equal(hints.hero_alignment, "left");
+});
+
+test("extractLayoutHints supports responsive and framework alignment classes", () => {
+  assert.equal(
+    extractLayoutHints("", {
+      classNames: ["md:text-center"],
+      inlineTextAlign: null,
+    }).hero_alignment,
+    "center",
+  );
+  assert.equal(
+    extractLayoutHints("", {
+      classNames: ["has-text-centered"],
+      inlineTextAlign: null,
+    }).hero_alignment,
+    "center",
+  );
+});
 
 test("extractColors deterministically returns up to three ranked real hex colors", () => {
   const cssText = `
@@ -321,5 +425,6 @@ function createScrapedHomepage(): ScrapedHomepage {
         body { font-family: "Space Grotesk", Inter, sans-serif; }
       `,
     },
+    hero: { classNames: [], inlineTextAlign: null },
   };
 }

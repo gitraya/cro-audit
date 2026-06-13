@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AuditProgress } from "./audit-progress";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { BrandTokens } from "@/lib/brand/extraction";
+import type { BrandTokens, LayoutHints } from "@/lib/brand/extraction";
 import type { PageSpeedSignals } from "@/lib/pagespeed/client";
 
 type AuditPageProps = {
@@ -211,6 +211,7 @@ export default async function AuditPage({ params }: AuditPageProps) {
           <PageSpeedPanel
             signals={audit.pagespeed_data as PageSpeedSignals | null}
           />
+          <LayoutHintsPanel hints={audit.layout_hints as LayoutHints | null} />
         </section>
       </div>
     </main>
@@ -369,6 +370,59 @@ function BrandTokensPanel({ tokens }: { tokens: BrandTokens | null }) {
           {!voice?.tone && !voice?.formality && !voice?.phrases?.length ? (
             <EmptyNote>No voice signals detected.</EmptyNote>
           ) : null}
+        </div>
+      </div>
+    </PanelShell>
+  );
+}
+
+function LayoutHintsPanel({ hints }: { hints: LayoutHints | null }) {
+  if (!hints) {
+    return (
+      <PanelShell title="Layout hints">
+        <EmptyNote>Not extracted yet.</EmptyNote>
+      </PanelShell>
+    );
+  }
+
+  const swatch = (label: string, color: string | null) => (
+    <div>
+      <p className={PANEL_LABEL}>{label}</p>
+      {color ? (
+        <span className="mt-2 inline-flex items-center gap-2 border border-neutral-200 py-1 pl-1 pr-2">
+          <span
+            className="h-6 w-6 border border-neutral-300"
+            style={{ backgroundColor: color }}
+          />
+          <span className="font-mono text-xs text-neutral-700">{color}</span>
+        </span>
+      ) : (
+        <p className="mt-1 text-sm text-neutral-500">Not detected.</p>
+      )}
+    </div>
+  );
+
+  return (
+    <PanelShell title="Layout hints">
+      <div className="mt-4 space-y-5">
+        <div className="grid grid-cols-2 gap-4">
+          {swatch("Background", hints.background_color)}
+          {swatch("Text", hints.text_color)}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
+            Theme:{" "}
+            <span className="font-medium text-neutral-900">
+              {hints.is_dark_theme ? "Dark" : "Light"}
+            </span>
+          </span>
+          <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
+            Hero alignment:{" "}
+            <span className="font-medium text-neutral-900 capitalize">
+              {hints.hero_alignment}
+            </span>
+          </span>
         </div>
       </div>
     </PanelShell>

@@ -246,6 +246,7 @@ function createScrapedHomepage(
         }
       `,
     },
+    hero: { classNames: [], inlineTextAlign: null },
     ...overrides,
   };
 }
