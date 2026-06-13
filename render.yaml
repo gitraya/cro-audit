@@ -1,0 +1,7 @@
+services:
+  - type: worker
+    name: monolitlabs-audit-worker
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run worker
