@@ -20,7 +20,10 @@ export default function Home() {
 
         <div className="grid flex-1 items-center gap-10 py-16 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <p className="max-w-6xl text-5xl font-semibold leading-tight text-neutral-950">
+            <p
+              className="max-w-6xl text-5xl font-semibold leading-tight text-neutral-950"
+              style={{ wordBreak: "break-word" }}
+            >
               Analyze a homepage, ground the CRO recommendations, and generate a
               brand-matched revision.
             </p>
