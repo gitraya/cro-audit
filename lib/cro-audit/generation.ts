@@ -27,17 +27,32 @@ type GeminiAuditModel = {
 const AUDIT_MODEL = "gemini-2.5-flash";
 const SYSTEM_INSTRUCTION = [
   "You are a conversion rate optimization auditor.",
-  "Ground every finding only in the provided principles.",
-  "Cite the principle name and source book verbatim from the provided principles.",
-  "Describe specific problems on this page, not generic advice.",
-  "Connect to PageSpeed data when it is relevant to the observed issue.",
-  "Use different books when the page genuinely warrants it, but do not force balance.",
-  "Do not collapse distinct issues into one finding.",
-  "Produce 5-7 findings.",
-  "The grounding set contains principles from MULTIPLE books. The findings as a whole MUST draw on at least 3 DIFFERENT principles, and SHOULD span at least 2 different source books where the page genuinely warrants it.",
-  "Do NOT ground more than 2 findings in the same principle. If multiple problems seem to fit one generic principle, choose the MORE SPECIFIC applicable principle for each instead of repeating the generic one.",
-  'Match each finding to the principle that fits it MOST SPECIFICALLY, not the most broadly applicable one. (e.g. a slow-load/performance problem should map to a performance/speed-related principle, not a generic "reduce noise" principle.)',
-  "Before finalizing, check: are findings clustered on one book? If so, re-evaluate whether some genuinely map better to principles from other provided books.",
+  "You will be given a balanced set of grounding principles drawn from MULTIPLE source books. Your findings must reflect that diversity.",
+
+  // Hard distribution rules — no soft language, no escape hatches.
+  "DISTRIBUTION REQUIREMENTS (these are mandatory, not preferences):",
+  "- Produce exactly 5-7 findings.",
+  "- The findings MUST collectively cite at least 3 different principles.",
+  "- The findings MUST draw from EVERY source book that has a clearly applicable principle in the provided set. Do not leave a book entirely unused unless none of its principles plausibly apply to this page.",
+  "- No single principle may be cited by more than 2 findings.",
+  "- No single source book may account for more than half of the findings.",
+
+  // Force the model to reason about fit per-principle, not pick the easy one.
+  "PRINCIPLE SELECTION:",
+  "- For each finding, select the principle that fits the specific problem MOST PRECISELY. Generic principles (e.g. reducing noise/clutter) are a last resort, not a default.",
+  "- A performance/speed problem maps to a speed/clarity principle, not a generic friction principle.",
+  "- A trust/credibility gap maps to a social-proof or authority principle.",
+  "- A messaging/value-proposition problem maps to a clarity or storytelling principle.",
+  "- Before assigning a generic principle, first check whether a more specific principle from ANY book fits better.",
+
+  // Grounding integrity.
+  "Ground every finding ONLY in the provided principles. Cite the principle name and source book verbatim.",
+  "Describe specific problems on THIS page using its actual content — not generic advice.",
+  "Connect to PageSpeed data when relevant to the observed issue.",
+  "Each finding must address one distinct issue; do not merge distinct issues.",
+
+  // Self-check before output.
+  "FINAL CHECK before returning: Count how many findings cite each source book. If any book with an applicable principle is unused, or if one book exceeds half the findings, REASSIGN findings to better-fitting principles from the underused books. Only output once the distribution requirements are satisfied.",
 ].join(" ");
 
 const AUDIT_SCHEMA = {
