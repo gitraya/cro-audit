@@ -1,7 +1,11 @@
 import { createServiceSupabaseClient } from "../supabase/admin.ts";
 import { runAuditPipeline } from "./pipeline.ts";
 import type { AuditMutationClient } from "../api/audit-repository.ts";
+import { createGeminiVoiceProviderWithCache } from "../brand/voice/gemini-provider.ts";
+import type { VoiceCacheClient } from "../brand/voice-cache.ts";
+import type { PageSpeedSignals } from "../pagespeed/client.ts";
 import type { AuditStage } from "../supabase/types.ts";
+import { getCachedPageSpeedSignals } from "../pagespeed/client.ts";
 
 type QueueAudit = {
   id: string;
@@ -36,6 +40,13 @@ export async function runAuditWorker(options: AuditWorkerOptions = {}) {
     ((auditId: string, url: string) =>
       runAuditPipeline(auditId, url, {
         supabase: supabase as unknown as AuditMutationClient,
+        voiceProvider: createGeminiVoiceProviderWithCache(
+          supabase as unknown as VoiceCacheClient,
+        ),
+        pageSpeedCollector: (targetUrl: string) =>
+          getCachedPageSpeedSignals(targetUrl, {
+            cache: createPageSpeedCache(supabase),
+          }),
       }));
 
   logger.log("Audit worker started.");
@@ -115,4 +126,37 @@ async function defaultSleep(ms: number) {
   await new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function createPageSpeedCache(supabase: WorkerSupabaseClient) {
+  return {
+    async read(urlKey: string) {
+      const { data, error } = await supabase
+        .from("pagespeed_caches")
+        .select("signals")
+        .eq("url_key", urlKey)
+        .maybeSingle<{ signals: PageSpeedSignals }>();
+
+      if (error) {
+        throw error;
+      }
+
+      return (data?.signals ?? null) as PageSpeedSignals | null;
+    },
+    async write(urlKey: string, signals: PageSpeedSignals) {
+      const { error } = await supabase.from("pagespeed_caches").upsert(
+        {
+          url_key: urlKey,
+          signals,
+        },
+        {
+          onConflict: "url_key",
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+    },
+  };
 }

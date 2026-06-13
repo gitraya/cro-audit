@@ -5,13 +5,18 @@ type BrandVoiceCacheRow = {
   voice: Json;
 };
 
-export async function readCachedVoice(urlKey: string): Promise<VoiceTokens | null> {
-  const supabase = await createVoiceCacheSupabaseClient();
+export type VoiceCacheClient = any;
+
+export async function readCachedVoice(
+  urlKey: string,
+  client?: VoiceCacheClient,
+): Promise<VoiceTokens | null> {
+  const supabase = client ?? (await createVoiceCacheSupabaseClient());
   const { data, error } = await supabase
     .from("brand_voice_caches")
     .select("voice")
     .eq("url_key", urlKey)
-    .maybeSingle<BrandVoiceCacheRow>();
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -20,8 +25,12 @@ export async function readCachedVoice(urlKey: string): Promise<VoiceTokens | nul
   return isVoiceTokens(data?.voice) ? data.voice : null;
 }
 
-export async function writeCachedVoice(urlKey: string, voice: VoiceTokens) {
-  const supabase = await createVoiceCacheSupabaseClient();
+export async function writeCachedVoice(
+  urlKey: string,
+  voice: VoiceTokens,
+  client?: VoiceCacheClient,
+) {
+  const supabase = client ?? (await createVoiceCacheSupabaseClient());
   const { error } = await supabase.from("brand_voice_caches").upsert(
     {
       url_key: urlKey,
@@ -37,7 +46,7 @@ export async function writeCachedVoice(urlKey: string, voice: VoiceTokens) {
   }
 }
 
-async function createVoiceCacheSupabaseClient() {
+async function createVoiceCacheSupabaseClient(): Promise<VoiceCacheClient> {
   const { createServerSupabaseClient } = await import("../supabase/server.ts");
 
   return createServerSupabaseClient();
