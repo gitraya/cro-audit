@@ -1,11 +1,10 @@
 import type { Json } from "../supabase/types.ts";
+import type { createServerSupabaseClient } from "../supabase/server.ts";
 import type { VoiceTokens } from "./extraction.ts";
 
-type BrandVoiceCacheRow = {
-  voice: Json;
-};
-
-export type VoiceCacheClient = any;
+export type VoiceCacheClient = Awaited<
+  ReturnType<typeof createServerSupabaseClient>
+>;
 
 export async function readCachedVoice(
   urlKey: string,
@@ -65,6 +64,8 @@ function isVoiceTokens(value: Json | undefined): value is VoiceTokens {
   );
 }
 
-function isFormality(value: Json | undefined): value is VoiceTokens["formality"] {
+function isFormality(
+  value: Json | undefined,
+): value is VoiceTokens["formality"] {
   return value === "casual" || value === "neutral" || value === "formal";
 }

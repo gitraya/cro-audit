@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { ResponseSchema } from "@google/generative-ai";
-import type { Json } from "../../supabase/types.ts";
 import type { VoiceProvider, VoiceTokens } from "../extraction.ts";
 import type { VoiceCacheClient } from "../voice-cache.ts";
 import { readCachedVoice, writeCachedVoice } from "../voice-cache.ts";
@@ -125,7 +124,9 @@ function parseVoiceJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (error) {
-    throw new Error(`Gemini returned invalid voice JSON: ${errorMessage(error)}`);
+    throw new Error(
+      `Gemini returned invalid voice JSON: ${errorMessage(error)}`,
+    );
   }
 }
 
