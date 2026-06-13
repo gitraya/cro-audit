@@ -48,8 +48,8 @@ type EndpointSupabaseClient = {
 };
 
 export type CreateAuditOptions = {
-  // Continues the pipeline after the response is sent (Vercel `after()`).
-  schedule: (task: () => Promise<void>) => void;
+  // Optional async kick-off used by tests or alternate runtimes.
+  schedule?: (task: () => Promise<void>) => void;
   runPipeline?: (auditId: string, url: string) => Promise<void>;
 };
 
@@ -72,13 +72,13 @@ export async function getAuditsEndpoint(supabase: EndpointSupabaseClient) {
   return jsonResponse({ audits: data });
 }
 
-// Async kick-off: creates the audit row and schedules the pipeline to keep
-// running after the response is sent. Returns { auditId } immediately and never
-// awaits the full pipeline.
+// Async kick-off: creates the audit row and optionally schedules the pipeline
+// for environments that support background execution. Returns { auditId }
+// immediately and never awaits the full pipeline.
 export async function createAuditEndpoint(
   request: Request,
   supabase: EndpointSupabaseClient,
-  options: CreateAuditOptions,
+  options: CreateAuditOptions = {},
 ) {
   const { schedule, runPipeline = runAuditPipeline } = options;
   const user = await getAuthenticatedUser(supabase);
@@ -111,7 +111,7 @@ export async function createAuditEndpoint(
 
   const { id: auditId } = data as { id: string };
 
-  schedule(() => runPipeline(auditId, url));
+  schedule?.(() => runPipeline(auditId, url));
 
   return jsonResponse({ auditId }, { status: 201 });
 }

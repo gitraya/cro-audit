@@ -1,6 +1,9 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { ResponseSchema } from "@google/generative-ai";
+import type { Json } from "../../supabase/types.ts";
 import type { VoiceProvider, VoiceTokens } from "../extraction.ts";
+import type { VoiceCacheClient } from "../voice-cache.ts";
+import { readCachedVoice, writeCachedVoice } from "../voice-cache.ts";
 
 export const GEMINI_VOICE_MODEL = "gemini-2.5-flash";
 
@@ -36,6 +39,12 @@ const SYSTEM_INSTRUCTION = [
 ].join(" ");
 
 export function createGeminiVoiceProvider(): VoiceProvider {
+  return createGeminiVoiceProviderWithCache();
+}
+
+export function createGeminiVoiceProviderWithCache(
+  cacheClient?: VoiceCacheClient,
+): VoiceProvider {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -54,6 +63,13 @@ export function createGeminiVoiceProvider(): VoiceProvider {
   });
 
   return async (input) => {
+    const cacheKey = input.url;
+    const cachedVoice = await readCachedVoice(cacheKey, cacheClient);
+
+    if (cachedVoice) {
+      return cachedVoice;
+    }
+
     const prompt = buildPrompt(input);
     const pageText = buildPageText(input);
     let lastError: unknown;
@@ -63,7 +79,9 @@ export function createGeminiVoiceProvider(): VoiceProvider {
         const result = await model.generateContent(prompt);
         const parsed = parseVoiceJson(result.response.text());
 
-        return normalizeGeminiVoiceTokens(parsed, pageText);
+        const normalized = normalizeGeminiVoiceTokens(parsed, pageText);
+        await writeCachedVoice(cacheKey, normalized, cacheClient);
+        return normalized;
       } catch (error) {
         lastError = error;
       }
