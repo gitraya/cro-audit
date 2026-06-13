@@ -8,6 +8,16 @@ export type Json =
 
 export type AuditStatus = "queued" | "running" | "completed" | "failed";
 
+// Granular progress for the async pipeline. `status` tracks terminal state
+// (queued = pending -> completed/failed); `stage` tracks the running step.
+export type AuditStage =
+  | "scraping"
+  | "analyzing_performance"
+  | "extracting_brand"
+  | "auditing"
+  | "generating"
+  | "done";
+
 export type Database = {
   public: {
     Tables: {
@@ -49,6 +59,7 @@ export type Database = {
           user_id: string;
           url: string;
           status: AuditStatus;
+          stage: AuditStage | null;
           brand_tokens: Json | null;
           pagespeed_data: Json | null;
           findings: Json | null;
@@ -63,6 +74,7 @@ export type Database = {
           user_id: string;
           url: string;
           status?: AuditStatus;
+          stage?: AuditStage | null;
           brand_tokens?: Json | null;
           pagespeed_data?: Json | null;
           findings?: Json | null;
@@ -77,6 +89,7 @@ export type Database = {
           user_id?: string;
           url?: string;
           status?: AuditStatus;
+          stage?: AuditStage | null;
           brand_tokens?: Json | null;
           pagespeed_data?: Json | null;
           findings?: Json | null;

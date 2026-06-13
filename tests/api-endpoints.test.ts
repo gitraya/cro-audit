@@ -2,11 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createAuditEndpoint,
+  getAuditStatusEndpoint,
   getAuditsEndpoint,
 } from "../lib/api/audits.ts";
-import type { BrandTokens } from "../lib/brand/extraction.ts";
-import type { PageSpeedSignals } from "../lib/pagespeed/client.ts";
-import type { ScrapedHomepage } from "../lib/scraper/homepage.ts";
 import { getUserEndpoint } from "../lib/api/user.ts";
 
 const authenticatedUser = {
@@ -97,6 +95,7 @@ test("POST /api/audits returns 401 without an authenticated user", async () => {
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "https://example.com" }),
     createAuditsClient({ user: null }),
+    { schedule: () => {} },
   );
 
   assert.equal(response.status, 401);
@@ -107,237 +106,109 @@ test("POST /api/audits returns 400 when URL is missing", async () => {
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "   " }),
     createAuditsClient({ user: authenticatedUser }),
+    { schedule: () => {} },
   );
 
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: "URL is required" });
 });
 
-test("POST /api/audits creates an audit, runs the CRO pipeline, and returns completed findings", async () => {
-  const scrape = createScrapedHomepage({
-    requestedUrl: "https://example.com/",
-  });
-  const insertedAudit = {
-    id: "audit-1",
-    user_id: authenticatedUser.id,
-    url: scrape.requestedUrl,
-    status: "queued",
-  };
+test("POST /api/audits creates a pending audit and schedules the pipeline without awaiting it", async () => {
   const client = createAuditsClient({
     user: authenticatedUser,
-    insertedAuditData: insertedAudit,
+    insertedId: "audit-1",
   });
-  const mockFindings = [
-    {
-      observation: "The hero lacks social proof.",
-      solution: "Add testimonials near the CTA.",
-      principle: "Social proof",
-      source_book: "Influence",
-    },
-  ];
-  const mockPrinciples = [{ book_title: "Influence", principle: "Social proof" }];
-  const mockAppliedChanges = [
-    {
-      change: "Added a testimonial block beside the primary CTA.",
-      finding_principle: "Social proof",
-      source_book: "Influence",
-    },
-  ];
-  const mockHtml =
-    "<!doctype html><html><head><style>:root{--brand-primary:#0f766e}</style></head><body><h1>Example</h1></body></html>";
-  let replicationInput: unknown;
+  const scheduled: Array<() => Promise<void>> = [];
+  const pipelineCalls: Array<{ auditId: string; url: string }> = [];
+
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "  https://example.com  " }),
     client,
-    async () => scrape,
-    undefined,
-    async () => expectedPageSpeedSignals,
-    async () =>
-      mockPrinciples.map((p) => ({
-        ...p,
-        id: "p-1",
-        book_author: "Cialdini",
-        explanation: "People follow others.",
-        cro_application: "Show testimonials.",
-        distance: 0.2,
-        similarity: 0.8,
-      })),
-    async () => ({ findings: mockFindings }),
-    async (input) => {
-      replicationInput = input;
-      return { html: mockHtml, applied_changes: mockAppliedChanges };
+    {
+      schedule: (task) => {
+        scheduled.push(task);
+      },
+      runPipeline: async (auditId, url) => {
+        pipelineCalls.push({ auditId, url });
+      },
     },
   );
 
   assert.equal(response.status, 201);
-  assert.deepEqual(await response.json(), {
-    audit: {
-      ...insertedAudit,
-      status: "completed",
-      findings: mockFindings,
-      generated_html: mockHtml,
-      applied_changes: mockAppliedChanges,
-      error_message: null,
-    },
-  });
+  assert.deepEqual(await response.json(), { auditId: "audit-1" });
+
+  // The row is created as pending (queued) at stage 'scraping' with the
+  // trimmed URL; no scraping/LLM work happens before the response.
   assert.deepEqual(client.calls.insert, {
     user_id: authenticatedUser.id,
-    url: scrape.requestedUrl,
+    url: "https://example.com",
     status: "queued",
-    brand_tokens: expectedBrandTokens,
-    pagespeed_data: expectedPageSpeedSignals,
-  });
-  assert.equal(client.calls.update?.id, insertedAudit.id);
-  assert.equal(client.calls.update?.values.status, "completed");
-  assert.equal(client.calls.update?.values.generated_html, mockHtml);
-  assert.deepEqual(
-    client.calls.update?.values.applied_changes,
-    mockAppliedChanges,
-  );
-  // Replication receives brand tokens, page content, and the validated findings.
-  assert.deepEqual(replicationInput, {
-    brandTokens: {
-      colors: expectedBrandTokens.colors,
-      font: expectedBrandTokens.font,
-      voice: expectedBrandTokens.voice,
-    },
-    page: {
-      url: scrape.requestedUrl,
-      title: scrape.title,
-      description: scrape.description,
-      headings: { h1: scrape.headings.h1, h2: scrape.headings.h2 },
-      bodyText: scrape.bodyText,
-    },
-    findings: mockFindings,
-  });
-  assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /scrape/);
-  assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /bodyText/);
-  assert.doesNotMatch(JSON.stringify(client.calls.insert?.brand_tokens), /html/);
-});
-
-test("POST /api/audits still completes findings when homepage replication fails", async () => {
-  const scrape = createScrapedHomepage({ requestedUrl: "https://example.com/" });
-  const insertedAudit = {
-    id: "audit-1",
-    user_id: authenticatedUser.id,
-    url: scrape.requestedUrl,
-    status: "queued",
-  };
-  const client = createAuditsClient({
-    user: authenticatedUser,
-    insertedAuditData: insertedAudit,
-  });
-  const mockFindings = [
-    {
-      observation: "The hero lacks social proof.",
-      solution: "Add testimonials near the CTA.",
-      principle: "Social proof",
-      source_book: "Influence",
-    },
-  ];
-
-  const response = await createAuditEndpoint(
-    createJsonRequest({ url: "https://example.com" }),
-    client,
-    async () => scrape,
-    undefined,
-    async () => expectedPageSpeedSignals,
-    async () => [
-      {
-        book_title: "Influence",
-        principle: "Social proof",
-        id: "p-1",
-        book_author: "Cialdini",
-        explanation: "People follow others.",
-        cro_application: "Show testimonials.",
-        distance: 0.2,
-        similarity: 0.8,
-      },
-    ],
-    async () => ({ findings: mockFindings }),
-    async () => {
-      throw new Error("replication boom");
-    },
-  );
-
-  assert.equal(response.status, 201);
-  assert.deepEqual(await response.json(), {
-    audit: {
-      ...insertedAudit,
-      status: "completed",
-      findings: mockFindings,
-      generated_html: null,
-      applied_changes: null,
-      error_message: null,
-    },
-  });
-  assert.equal(client.calls.update?.values.status, "completed");
-  assert.equal(client.calls.update?.values.generated_html, null);
-});
-
-test("POST /api/audits starts PageSpeed collection before scrape completes", async () => {
-  let pageSpeedStarted = false;
-  let scrapeSawPageSpeedStarted = false;
-  const client = createAuditsClient({
-    user: authenticatedUser,
-    insertedAuditData: {
-      id: "audit-1",
-      user_id: authenticatedUser.id,
-      url: "https://api.example.com/",
-      status: "queued",
-    },
+    stage: "scraping",
   });
 
-  const response = await createAuditEndpoint(
-    createJsonRequest({ url: "https://example.com" }),
-    client,
-    async () => {
-      scrapeSawPageSpeedStarted = pageSpeedStarted;
-      return createScrapedHomepage();
-    },
-    undefined,
-    async () => {
-      pageSpeedStarted = true;
-      return expectedPageSpeedSignals;
-    },
-    async () => [],
-    async () => ({ findings: [] }),
-    async () => ({ html: "<!doctype html><html></html>", applied_changes: [] }),
-  );
+  // The pipeline is scheduled but not awaited during the request.
+  assert.equal(scheduled.length, 1);
+  assert.deepEqual(pipelineCalls, []);
 
-  assert.equal(response.status, 201);
-  assert.equal(scrapeSawPageSpeedStarted, true);
-});
-
-test("POST /api/audits returns 422 when scraping fails", async () => {
-  const response = await createAuditEndpoint(
-    createJsonRequest({ url: "https://example.com" }),
-    createAuditsClient({ user: authenticatedUser }),
-    async () => {
-      throw new Error("Failed to fetch page: 404");
-    },
-    undefined,
-    async () => null,
-  );
-
-  assert.equal(response.status, 422);
-  assert.deepEqual(await response.json(), { error: "Failed to fetch page: 404" });
+  // Running the scheduled task drives the pipeline with the new audit id + URL.
+  await scheduled[0]();
+  assert.deepEqual(pipelineCalls, [
+    { auditId: "audit-1", url: "https://example.com" },
+  ]);
 });
 
 test("POST /api/audits returns 500 when audit insert fails", async () => {
+  let scheduledCount = 0;
   const response = await createAuditEndpoint(
     createJsonRequest({ url: "https://example.com" }),
     createAuditsClient({
       user: authenticatedUser,
       insertError: { message: "insert failed" },
     }),
-    async () => createScrapedHomepage(),
-    undefined,
-    async () => expectedPageSpeedSignals,
+    {
+      schedule: () => {
+        scheduledCount += 1;
+      },
+    },
   );
 
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: "insert failed" });
+  assert.equal(scheduledCount, 0);
+});
+
+test("GET /api/audits/[id]/status returns 401 without an authenticated user", async () => {
+  const response = await getAuditStatusEndpoint(
+    createAuditsClient({ user: null }),
+    "audit-1",
+  );
+
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: "Unauthorized" });
+});
+
+test("GET /api/audits/[id]/status returns only status and stage for the owner", async () => {
+  const client = createAuditsClient({
+    user: authenticatedUser,
+    statusData: { status: "queued", stage: "auditing" },
+  });
+  const response = await getAuditStatusEndpoint(client, "audit-1");
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    status: "queued",
+    stage: "auditing",
+  });
+});
+
+test("GET /api/audits/[id]/status returns 404 when the audit is not visible", async () => {
+  const response = await getAuditStatusEndpoint(
+    createAuditsClient({ user: authenticatedUser, statusData: null }),
+    "missing",
+  );
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "Not found" });
 });
 
 function createJsonRequest(body: unknown) {
@@ -393,9 +264,10 @@ function createAuditsClient(options: {
   user: typeof authenticatedUser | null;
   auditsData?: unknown[];
   auditsError?: { message: string } | null;
-  insertedAuditData?: unknown;
+  insertedId?: string;
   insertError?: { message: string } | null;
-  updateError?: { message: string } | null;
+  statusData?: { status: string; stage: string | null } | null;
+  statusError?: { message: string } | null;
 }) {
   const calls: {
     order?: {
@@ -405,13 +277,8 @@ function createAuditsClient(options: {
     insert?: {
       user_id: string;
       url: string;
-      status: "queued";
-      brand_tokens: BrandTokens;
-      pagespeed_data: PageSpeedSignals | null;
-    };
-    update?: {
-      values: Record<string, unknown>;
-      id: string;
+      status: string;
+      stage: string;
     };
   } = {};
 
@@ -426,9 +293,7 @@ function createAuditsClient(options: {
       assert.equal(table, "audits");
 
       return {
-        select(columns: string) {
-          assert.equal(columns, "*");
-
+        select() {
           return {
             async order(column: string, orderOptions: { ascending: boolean }) {
               calls.order = { column, options: orderOptions };
@@ -438,25 +303,36 @@ function createAuditsClient(options: {
                 error: options.auditsError ?? null,
               };
             },
+            eq(column: string) {
+              assert.equal(column, "id");
+
+              return {
+                async single() {
+                  return {
+                    data: options.statusData ?? null,
+                    error: options.statusError ?? null,
+                  };
+                },
+              };
+            },
           };
         },
         insert(values: {
           user_id: string;
           url: string;
-          status: "queued";
-          brand_tokens: BrandTokens;
-          pagespeed_data: PageSpeedSignals | null;
+          status: string;
+          stage: string;
         }) {
           calls.insert = values;
 
           return {
-            select(columns: string) {
-              assert.equal(columns, "*");
-
+            select() {
               return {
                 async single() {
                   return {
-                    data: options.insertedAuditData ?? null,
+                    data: options.insertError
+                      ? null
+                      : { id: options.insertedId ?? "audit-1" },
                     error: options.insertError ?? null,
                   };
                 },
@@ -464,104 +340,7 @@ function createAuditsClient(options: {
             },
           };
         },
-        update(values: Record<string, unknown>) {
-          return {
-            eq(column: string, id: string) {
-              assert.equal(column, "id");
-              calls.update = { values, id };
-
-              return Promise.resolve({ data: null, error: options.updateError ?? null });
-            },
-          };
-        },
       };
     },
   };
 }
-
-function createScrapedHomepage(
-  overrides: Partial<ScrapedHomepage> = {},
-): ScrapedHomepage {
-  return {
-    requestedUrl: "https://api.example.com/",
-    finalUrl: "https://api.example.com/",
-    html: "<!doctype html><html><head><title>Example</title></head><body>Example body</body></html>",
-    title: "Example",
-    description: "Example description",
-    canonicalUrl: "https://api.example.com/",
-    headings: {
-      h1: ["Example"],
-      h2: [],
-      h3: [],
-    },
-    bodyText: "Example body",
-    links: [],
-    images: [],
-    styles: {
-      inlineStyleCount: 0,
-      stylesheetHrefs: [],
-      externalStylesheetCount: 0,
-      cssText: `
-        :root {
-          --brand-primary: #0f766e;
-          --brand-secondary: #7c3aed;
-          --brand-accent: #f97316;
-          --font-sans: "Space Grotesk", Inter, sans-serif;
-        }
-      `,
-    },
-    ...overrides,
-  };
-}
-
-const expectedBrandTokens: BrandTokens = {
-  colors: ["#0f766e", "#7c3aed", "#f97316"],
-  font: {
-    primary: "Space Grotesk",
-    fallbacks: ["Inter"],
-  },
-  voice: {
-    tone: "",
-    formality: "neutral",
-    phrases: ["Example", "Example description"],
-  },
-  extraction_method: {
-    colors:
-      "Deterministic CSS parser ranks real CSS and theme metadata colors, filters transparent and neutral values, and returns up to 3 found hex values with no invented fallbacks.",
-    font:
-      "Deterministic CSS parser ranks real font-family declarations from CSS variables, document root, and body-level rules; generic and icon fonts are excluded and no font is invented.",
-    voice:
-      "URL-cached deterministic voice extraction from title, meta description, headings, and body copy; no LLM provider configured and no defaults are invented.",
-  },
-};
-
-const expectedPageSpeedSignals: PageSpeedSignals = {
-  scores: {
-    performance: 82,
-    accessibility: 91,
-  },
-  coreWebVitals: {
-    lcp: {
-      value: 2800,
-      displayValue: "2.8 s",
-      rating: "needs-improvement",
-    },
-    cls: {
-      value: 0.03,
-      displayValue: "0.03",
-      rating: "good",
-    },
-    tbt: {
-      value: 180,
-      displayValue: "180 ms",
-      rating: "needs-improvement",
-    },
-  },
-  topIssues: [
-    {
-      id: "largest-contentful-paint",
-      title: "Largest Contentful Paint",
-      description: "Largest Contentful Paint marks the time.",
-    },
-  ],
-};

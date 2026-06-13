@@ -1,5 +1,5 @@
+import { after } from "next/server";
 import { createAuditEndpoint, getAuditsEndpoint } from "@/lib/api/audits";
-import { createGeminiVoiceProvider } from "@/lib/brand/voice/gemini-provider";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -17,10 +17,11 @@ export async function POST(request: Request) {
     typeof createAuditEndpoint
   >[1];
 
-  return createAuditEndpoint(
-    request,
-    endpointClient,
-    undefined,
-    createGeminiVoiceProvider(),
-  );
+  // `after()` (Next.js / Vercel) keeps the pipeline running on the same
+  // invocation after the response is flushed — like waitUntil — so the request
+  // returns in well under the serverless limit while the 40-90s pipeline (3 LLM
+  // calls + PageSpeed) finishes in the background.
+  return createAuditEndpoint(request, endpointClient, {
+    schedule: (task) => after(task),
+  });
 }
