@@ -1,6 +1,9 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import type { ResponseSchema } from "@google/generative-ai";
-import type { BalancedPrinciple, BalancedPrinciplesInput } from "./retrieval.ts";
+import type {
+  BalancedPrinciple,
+  BalancedPrinciplesInput,
+} from "./retrieval.ts";
 
 export type AuditFinding = {
   observation: string;
@@ -31,6 +34,10 @@ const SYSTEM_INSTRUCTION = [
   "Use different books when the page genuinely warrants it, but do not force balance.",
   "Do not collapse distinct issues into one finding.",
   "Produce 5-7 findings.",
+  "The grounding set contains principles from MULTIPLE books. The findings as a whole MUST draw on at least 3 DIFFERENT principles, and SHOULD span at least 2 different source books where the page genuinely warrants it.",
+  "Do NOT ground more than 2 findings in the same principle. If multiple problems seem to fit one generic principle, choose the MORE SPECIFIC applicable principle for each instead of repeating the generic one.",
+  'Match each finding to the principle that fits it MOST SPECIFICALLY, not the most broadly applicable one. (e.g. a slow-load/performance problem should map to a performance/speed-related principle, not a generic "reduce noise" principle.)',
+  "Before finalizing, check: are findings clustered on one book? If so, re-evaluate whether some genuinely map better to principles from other provided books.",
 ].join(" ");
 
 const AUDIT_SCHEMA = {
@@ -80,7 +87,9 @@ export async function generateAudit(
       lastError = error;
 
       if (!isParseError(error) || attempt === 1) {
-        throw new Error(`Gemini audit generation failed: ${errorMessage(error)}`);
+        throw new Error(
+          `Gemini audit generation failed: ${errorMessage(error)}`,
+        );
       }
     }
   }
@@ -146,7 +155,9 @@ function parseAuditJson(text: string): GeneratedAudit {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    throw new ParseError(`Gemini returned invalid audit JSON: ${errorMessage(error)}`);
+    throw new ParseError(
+      `Gemini returned invalid audit JSON: ${errorMessage(error)}`,
+    );
   }
 
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {

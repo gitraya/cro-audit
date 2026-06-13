@@ -1,27 +1,6 @@
 import { jsonResponse } from "./responses.ts";
-import {
-  extractBrandTokens,
-  type BrandTokens,
-  type VoiceProvider,
-} from "../brand/extraction.ts";
-import {
-  getCachedPageSpeedSignals,
-  type PageSpeedSignals,
-} from "../pagespeed/client.ts";
-import { scrapeHomepage, type ScrapedHomepage } from "../scraper/homepage.ts";
-import {
-  retrieveBalancedPrinciples,
-  type BalancedPrinciple,
-  type BalancedPrinciplesInput,
-} from "../cro-audit/retrieval.ts";
-import { generateAudit, type GeneratedAudit } from "../cro-audit/generation.ts";
-import { validateAudit } from "../cro-audit/validation.ts";
-import {
-  generateReplicatedHomepage,
-  type ReplicatedHomepage,
-  type ReplicationInput,
-} from "../cro-audit/replication.ts";
-import type { AuditStatus, Json } from "../supabase/types.ts";
+import { runAuditPipeline } from "../cro-audit/pipeline.ts";
+import type { AuditStage, AuditStatus } from "../supabase/types.ts";
 
 type EndpointUser = {
   id: string;
@@ -33,6 +12,19 @@ type QueryResult<T> = PromiseLike<{
   error: { message: string } | null;
 }>;
 
+type SelectBuilder = {
+  order?: (
+    column: string,
+    options: { ascending: boolean },
+  ) => QueryResult<unknown[] | null>;
+  eq?: (
+    column: string,
+    value: string,
+  ) => {
+    single: () => QueryResult<unknown>;
+  };
+};
+
 type EndpointSupabaseClient = {
   auth: {
     getUser: () => Promise<{
@@ -42,34 +34,24 @@ type EndpointSupabaseClient = {
     }>;
   };
   from: (table: "audits") => {
-    select: (columns: string) => {
-      order?: (
-        column: string,
-        options: { ascending: boolean },
-      ) => QueryResult<unknown[] | null>;
-      single?: () => QueryResult<unknown>;
-    };
+    select: (columns: string) => SelectBuilder;
     insert: (values: {
       user_id: string;
       url: string;
       status: "queued";
-      brand_tokens: BrandTokens;
-      pagespeed_data: PageSpeedSignals | null;
+      stage: "scraping";
     }) => {
       select: (columns: string) => {
         single: () => QueryResult<unknown>;
       };
     };
-    update: (values: {
-      status: AuditStatus;
-      findings?: Json | null;
-      generated_html?: string | null;
-      applied_changes?: Json | null;
-      error_message?: string | null;
-    }) => {
-      eq: (column: string, value: string) => QueryResult<unknown>;
-    };
   };
+};
+
+export type CreateAuditOptions = {
+  // Continues the pipeline after the response is sent (Vercel `after()`).
+  schedule: (task: () => Promise<void>) => void;
+  runPipeline?: (auditId: string, url: string) => Promise<void>;
 };
 
 export async function getAuditsEndpoint(supabase: EndpointSupabaseClient) {
@@ -91,25 +73,42 @@ export async function getAuditsEndpoint(supabase: EndpointSupabaseClient) {
   return jsonResponse({ audits: data });
 }
 
+// Lightweight poll target: returns only { status, stage }, scoped to the owner
+// (RLS on the user-scoped client). Never returns the heavy html/findings.
+export async function getAuditStatusEndpoint(
+  supabase: EndpointSupabaseClient,
+  auditId: string,
+) {
+  const user = await getAuthenticatedUser(supabase);
+
+  if (!user) {
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from("audits")
+    .select("status,stage")
+    .eq!("id", auditId)
+    .single();
+
+  if (error || !data) {
+    return jsonResponse({ error: "Not found" }, { status: 404 });
+  }
+
+  const row = data as { status: AuditStatus; stage: AuditStage | null };
+
+  return jsonResponse({ status: row.status, stage: row.stage });
+}
+
+// Async kick-off: creates the audit row and schedules the pipeline to keep
+// running after the response is sent. Returns { auditId } immediately and never
+// awaits the full pipeline.
 export async function createAuditEndpoint(
   request: Request,
   supabase: EndpointSupabaseClient,
-  scraper: (url: string) => Promise<ScrapedHomepage> = scrapeHomepage,
-  voiceProvider?: VoiceProvider,
-  pageSpeedCollector: (
-    url: string,
-  ) => Promise<PageSpeedSignals | null> = getCachedPageSpeedSignals,
-  principleRetriever: (
-    inputs: BalancedPrinciplesInput,
-  ) => Promise<BalancedPrinciple[]> = retrieveBalancedPrinciples,
-  auditGenerator: (
-    inputs: BalancedPrinciplesInput,
-    principles: BalancedPrinciple[],
-  ) => Promise<GeneratedAudit> = generateAudit,
-  homepageReplicator: (
-    inputs: ReplicationInput,
-  ) => Promise<ReplicatedHomepage> = generateReplicatedHomepage,
+  options: CreateAuditOptions,
 ) {
+  const { schedule, runPipeline = runAuditPipeline } = options;
   const user = await getAuthenticatedUser(supabase);
 
   if (!user) {
@@ -123,160 +122,26 @@ export async function createAuditEndpoint(
     return jsonResponse({ error: "URL is required" }, { status: 400 });
   }
 
-  let scrapedPage: ScrapedHomepage;
-  let brandTokens: BrandTokens;
-  let pageSpeedData: PageSpeedSignals | null;
-
-  try {
-    const pageSpeedPromise = pageSpeedCollector(url);
-    const scrapePromise = scraper(url);
-    [scrapedPage, pageSpeedData] = await Promise.all([
-      scrapePromise,
-      pageSpeedPromise,
-    ]);
-    brandTokens = await extractBrandTokens(scrapedPage, voiceProvider);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Scrape failed";
-    return jsonResponse({ error: message }, { status: 422 });
-  }
-
   const { data, error } = await supabase
     .from("audits")
     .insert({
       user_id: user.id,
-      url: scrapedPage.requestedUrl,
+      url,
       status: "queued",
-      brand_tokens: brandTokens,
-      pagespeed_data: pageSpeedData,
+      stage: "scraping",
     })
-    .select("*")
+    .select("id")
     .single();
 
   if (error) {
     return jsonResponse({ error: error.message }, { status: 500 });
   }
 
-  const insertedAudit = data as { id: string } & Record<string, unknown>;
-  const inputs: BalancedPrinciplesInput = {
-    title: scrapedPage.title,
-    description: scrapedPage.description,
-    headings: { h1: scrapedPage.headings.h1, h2: scrapedPage.headings.h2 },
-    bodyText: scrapedPage.bodyText,
-    pageSpeedSummary: pageSpeedData
-      ? buildPageSpeedSummary(pageSpeedData)
-      : null,
-  };
+  const { id: auditId } = data as { id: string };
 
-  let updateValues: {
-    status: AuditStatus;
-    findings: Json | null;
-    generated_html: string | null;
-    applied_changes: Json | null;
-    error_message: string | null;
-  };
+  schedule(() => runPipeline(auditId, url));
 
-  try {
-    const principles = await principleRetriever(inputs);
-    const generated = await auditGenerator(inputs, principles);
-    const {
-      validFindings,
-      rejectedFindings,
-      sourceCoverage,
-      collapsedToSingleSource,
-    } = validateAudit(generated, principles);
-
-    console.log("Additional Info from audit process: ", {
-      rejectedFindings,
-      sourceCoverage,
-      collapsedToSingleSource,
-    });
-
-    // Replication is best-effort: a failure here must not discard valid findings.
-    let generatedHtml: string | null = null;
-    let appliedChanges: Json | null = null;
-
-    try {
-      const replicated = await homepageReplicator({
-        brandTokens: {
-          colors: brandTokens.colors,
-          font: brandTokens.font,
-          voice: brandTokens.voice,
-        },
-        page: {
-          url: scrapedPage.requestedUrl,
-          title: scrapedPage.title,
-          description: scrapedPage.description,
-          headings: {
-            h1: scrapedPage.headings.h1,
-            h2: scrapedPage.headings.h2,
-          },
-          bodyText: scrapedPage.bodyText,
-        },
-        findings: validFindings,
-      });
-      generatedHtml = replicated.html;
-      appliedChanges = replicated.applied_changes as unknown as Json;
-    } catch (replicationError) {
-      console.error("Homepage replication failed: ", replicationError);
-    }
-
-    updateValues = {
-      status: "completed",
-      findings: validFindings as unknown as Json,
-      generated_html: generatedHtml,
-      applied_changes: appliedChanges,
-      error_message: null,
-    };
-  } catch (auditError) {
-    updateValues = {
-      status: "failed",
-      findings: null,
-      generated_html: null,
-      applied_changes: null,
-      error_message:
-        auditError instanceof Error ? auditError.message : "CRO audit failed",
-    };
-  }
-
-  const { error: updateError } = await supabase
-    .from("audits")
-    .update(updateValues)
-    .eq("id", insertedAudit.id);
-
-  if (updateError) {
-    return jsonResponse(
-      { error: (updateError as { message: string }).message },
-      { status: 500 },
-    );
-  }
-
-  return jsonResponse(
-    { audit: { ...insertedAudit, ...updateValues } },
-    { status: 201 },
-  );
-}
-
-function buildPageSpeedSummary(signals: PageSpeedSignals): string {
-  const parts: string[] = [];
-  const { scores, coreWebVitals, topIssues } = signals;
-
-  if (scores.performance !== null)
-    parts.push(`Performance: ${scores.performance}/100`);
-  if (scores.accessibility !== null)
-    parts.push(`Accessibility: ${scores.accessibility}/100`);
-
-  const { lcp, cls, tbt } = coreWebVitals;
-  if (lcp.displayValue) parts.push(`LCP: ${lcp.displayValue} (${lcp.rating})`);
-  if (cls.displayValue) parts.push(`CLS: ${cls.displayValue} (${cls.rating})`);
-  if (tbt.displayValue) parts.push(`TBT: ${tbt.displayValue} (${tbt.rating})`);
-
-  if (topIssues.length > 0) {
-    parts.push(
-      `Top issues: ${topIssues.map((issue) => issue.title).join(", ")}`,
-    );
-  }
-
-  return parts.join("; ");
+  return jsonResponse({ auditId }, { status: 201 });
 }
 
 async function getAuthenticatedUser(supabase: EndpointSupabaseClient) {
