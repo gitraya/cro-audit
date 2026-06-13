@@ -40,34 +40,18 @@ function defaultClient(): AuditMutationClient {
 // Lightweight single-update progress marker between pipeline stages.
 export async function updateAuditStage(
   id: string,
-  stage: AuditStage,
-  supabase: AuditMutationClient = defaultClient(),
-): Promise<void> {
-  const { error } = await supabase.from("audits").update({ stage }).eq("id", id);
-
-  if (error) {
-    throw new Error(`Failed to update audit stage to ${stage}: ${error.message}`);
-  }
-}
-
-// Terminal success: status complete, stage done, plus the produced artifacts.
-export async function completeAudit(
-  id: string,
-  artifacts: CompletedAuditArtifacts,
+  artifacts: AuditUpdateValues,
   supabase: AuditMutationClient = defaultClient(),
 ): Promise<void> {
   const { error } = await supabase
     .from("audits")
-    .update({
-      status: "completed",
-      stage: "done",
-      error_message: null,
-      ...artifacts,
-    })
+    .update(artifacts)
     .eq("id", id);
 
   if (error) {
-    throw new Error(`Failed to complete audit: ${error.message}`);
+    throw new Error(
+      `Failed to update audit stage to ${artifacts.stage}: ${error.message}`,
+    );
   }
 }
 

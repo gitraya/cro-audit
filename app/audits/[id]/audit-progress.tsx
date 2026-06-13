@@ -73,7 +73,7 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
               setTimedOut(false);
               router.refresh();
             }}
-            className="font-medium underline underline-offset-2"
+            className="font-medium underline underline-offset-2 cursor-pointer"
           >
             check again
           </button>
