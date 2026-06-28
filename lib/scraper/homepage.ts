@@ -67,7 +67,7 @@ export async function scrapeHomepage(rawUrl: string): Promise<ScrapedHomepage> {
         accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "user-agent":
-          "Mozilla/5.0 (compatible; MonolitlabsAuditBot/1.0; +https://monolitlabs.ai.raya.bio)",
+          "Mozilla/5.0 (compatible; CROAuditBot/1.0)",
       },
       redirect: "follow",
       signal: controller.signal,
@@ -278,7 +278,7 @@ async function fetchStylesheet(href: string): Promise<StylesheetSource | null> {
       headers: {
         accept: "text/css,*/*;q=0.5",
         "user-agent":
-          "Mozilla/5.0 (compatible; MonolitlabsAuditBot/1.0; +https://monolitlabs.ai.raya.bio)",
+          "Mozilla/5.0 (compatible; CROAuditBot/1.0)",
       },
       redirect: "follow",
       signal: controller.signal,

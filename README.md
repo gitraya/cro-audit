@@ -2,11 +2,9 @@
 
 A web application that performs Conversion Rate Optimization audits on any homepage and generates an improved, brand-matched version of the page — grounded in established CRO and persuasion literature.
 
-## Live Demo
+## Demo
 
-- **Application URL:** https://monolitlabs.ai.raya.bio
-- **Test accounts:**
-  - Create one via the in-app signup form (Supabase email auth)
+- Create an account via the in-app signup form (Supabase email auth).
 
 Audit history is stored per authenticated Supabase user.
 
@@ -120,7 +118,7 @@ Audits are inserted into Supabase with the authenticated user's id. The dashboar
 ```bash
 # 1. Clone
 git clone <repo-url>
-cd monolitlabs.ai
+cd cro-audit
 
 # 2. Install
 npm install
@@ -189,7 +187,7 @@ AI assistance was used for implementation support, debugging extraction edge cas
 
 ---
 
-## Not Implemented (Per Spec — Explicitly Not Required)
+## Out of Scope (Intentionally Not Implemented)
 
 - Mobile responsiveness on the generated homepage
 - Pixel-perfect visual matching

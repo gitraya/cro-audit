@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           href="/"
           className="text-sm font-medium uppercase tracking-normal text-emerald-700"
         >
-          Monolitlabs
+          CRO Audit
         </Link>
         <div className="mt-10 grid gap-8 lg:grid-cols-2">
           <section>

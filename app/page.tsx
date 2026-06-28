@@ -7,7 +7,7 @@ export default function Home() {
         <header className="flex items-center justify-between border-b border-neutral-200 pb-5">
           <div>
             <p className="text-sm font-medium uppercase tracking-normal text-emerald-700">
-              Monolitlabs
+              CRO Audit
             </p>
             <h1 className="mt-2 text-2xl font-semibold">
               CRO Audit & Homepage Replication

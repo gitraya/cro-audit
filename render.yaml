@@ -1,6 +1,6 @@
 services:
   - type: worker
-    name: monolitlabs-audit-worker
+    name: cro-audit-worker
     env: node
     plan: free
     buildCommand: npm install

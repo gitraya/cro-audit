@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Monolitlabs CRO Audit",
+  title: "CRO Audit",
   description:
     "A CRO audit and homepage replication workspace for brand-grounded website improvements.",
 };
