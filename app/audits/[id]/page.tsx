@@ -130,6 +130,49 @@ export default async function AuditPage({ params }: AuditPageProps) {
           </div>
         ) : null}
 
+        {/* GENERATED HOMEPAGE — full width */}
+        <div className="mb-12">
+          <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-6 pb-2 border-b border-zinc-100">
+            Generated homepage
+          </h2>
+
+          {audit.generated_html ? (
+            <div className="border border-zinc-200 rounded-lg overflow-hidden shadow-md bg-white">
+              {/* Browser bar */}
+              <div className="bg-zinc-100 border-b border-zinc-200 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  <span className="w-3 h-3 rounded-full bg-red-400 block" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-400 block" />
+                  <span className="w-3 h-3 rounded-full bg-green-400 block" />
+                </div>
+                <div className="bg-white border border-zinc-200/80 rounded px-3 py-1 text-center font-mono text-xs text-zinc-400 flex items-center justify-center space-x-1 w-2/3 md:w-1/2">
+                  <span className="text-zinc-300">https://</span>
+                  <span className="text-zinc-700 truncate">
+                    {audit.url.replace(/https?:\/\//, "")}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <Monitor className="w-4 h-4 text-zinc-400" />
+                </div>
+              </div>
+              <iframe
+                title={`Generated homepage for ${audit.url}`}
+                sandbox=""
+                srcDoc={audit.generated_html}
+                className="h-[calc(100vh-120px)] w-full bg-white block"
+              />
+            </div>
+          ) : (
+            <div className="border border-dashed border-zinc-300 bg-white rounded-lg px-5 py-10 text-center">
+              <p className="text-sm text-zinc-500 font-mono">
+                {isPending
+                  ? "The brand-matched homepage will appear here when generation finishes."
+                  : "No homepage was generated for this audit."}
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Audit Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* LEFT: Findings, Generated homepage, Applied changes */}
@@ -188,49 +231,6 @@ export default async function AuditPage({ params }: AuditPageProps) {
                 <div className="border border-dashed border-zinc-300 bg-white rounded-lg px-5 py-10 text-center">
                   <p className="text-sm text-zinc-500 font-mono">
                     {findingsEmptyMessage}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* GENERATED HOMEPAGE */}
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-6 pb-2 border-b border-zinc-100">
-                Generated homepage
-              </h2>
-
-              {audit.generated_html ? (
-                <div className="border border-zinc-200 rounded-lg overflow-hidden shadow-md bg-white">
-                  {/* Browser bar */}
-                  <div className="bg-zinc-100 border-b border-zinc-200 px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center space-x-1.5 shrink-0">
-                      <span className="w-3 h-3 rounded-full bg-red-400 block" />
-                      <span className="w-3 h-3 rounded-full bg-yellow-400 block" />
-                      <span className="w-3 h-3 rounded-full bg-green-400 block" />
-                    </div>
-                    <div className="bg-white border border-zinc-200/80 rounded px-3 py-1 text-center font-mono text-xs text-zinc-400 flex items-center justify-center space-x-1 w-2/3 md:w-1/2">
-                      <span className="text-zinc-300">https://</span>
-                      <span className="text-zinc-700 truncate">
-                        {audit.url.replace(/https?:\/\//, "")}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2 shrink-0">
-                      <Monitor className="w-4 h-4 text-zinc-400" />
-                    </div>
-                  </div>
-                  <iframe
-                    title={`Generated homepage for ${audit.url}`}
-                    sandbox=""
-                    srcDoc={audit.generated_html}
-                    className="h-[640px] w-full bg-white block"
-                  />
-                </div>
-              ) : (
-                <div className="border border-dashed border-zinc-300 bg-white rounded-lg px-5 py-10 text-center">
-                  <p className="text-sm text-zinc-500 font-mono">
-                    {isPending
-                      ? "The brand-matched homepage will appear here when generation finishes."
-                      : "No homepage was generated for this audit."}
                   </p>
                 </div>
               )}
