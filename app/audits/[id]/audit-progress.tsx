@@ -51,11 +51,12 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
       : STAGES.findIndex((entry) => entry.key === stage);
 
   return (
-    <section className="mt-8 border border-amber-200 bg-amber-50 p-5">
-      <h2 className="text-base font-semibold text-amber-900">
+    <section className="mb-12 bg-white border border-zinc-200 rounded-lg p-6 shadow-xs">
+      <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-900 flex items-center">
+        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse mr-2" />
         Audit in progress
       </h2>
-      <p className="mt-2 text-sm leading-6 text-amber-900">
+      <p className="mt-3 text-sm leading-6 text-zinc-600">
         {stage
           ? `Currently ${stage.replace(/_/g, " ")}. `
           : "The audit has started. "}
@@ -64,7 +65,7 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
       </p>
 
       {timedOut ? (
-        <p className="mt-3 text-sm leading-6 text-amber-900">
+        <p className="mt-3 text-sm leading-6 text-zinc-600">
           This is taking longer than expected. It may still finish in the
           background —{" "}
           <button
@@ -73,7 +74,7 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
               setTimedOut(false);
               router.refresh();
             }}
-            className="font-medium underline underline-offset-2 cursor-pointer"
+            className="font-medium text-emerald-700 underline underline-offset-2 cursor-pointer"
           >
             check again
           </button>
@@ -82,8 +83,8 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
       ) : null}
 
       <div className="mt-4">
-        <p className="text-sm text-amber-900">
-          Auditing <span className="font-medium">{url}</span>
+        <p className="text-xs font-mono text-zinc-500">
+          Auditing <span className="text-zinc-800 font-medium">{url}</span>
         </p>
 
         <ol className="mt-5">
@@ -103,7 +104,7 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
                   {!isLast ? (
                     <span
                       className={`w-px flex-1 ${
-                        state === "done" ? "bg-emerald-600" : "bg-neutral-200"
+                        state === "done" ? "bg-emerald-600" : "bg-zinc-200"
                       }`}
                     />
                   ) : null}
@@ -111,14 +112,12 @@ export function AuditProgress({ url, status, stage }: AuditProgressProps) {
                 <div className={isLast ? "pb-0" : "pb-7"}>
                   <p
                     className={`text-sm font-medium ${
-                      state === "pending"
-                        ? "text-neutral-400"
-                        : "text-neutral-900"
+                      state === "pending" ? "text-zinc-400" : "text-zinc-900"
                     }`}
                   >
                     {item.label}
                   </p>
-                  <p className="mt-0.5 text-xs text-neutral-500">
+                  <p className="mt-0.5 text-xs text-zinc-500">
                     {state === "active"
                       ? "In progress…"
                       : state === "done"
@@ -164,6 +163,6 @@ function StepIndicator({ state }: { state: "done" | "active" | "pending" }) {
   }
 
   return (
-    <span className="h-6 w-6 rounded-full border-2 border-neutral-200 bg-white" />
+    <span className="h-6 w-6 rounded-full border-2 border-zinc-200 bg-white" />
   );
 }
