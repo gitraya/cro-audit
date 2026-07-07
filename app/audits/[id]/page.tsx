@@ -107,6 +107,7 @@ export default async function AuditPage({ params }: AuditPageProps) {
         </div>
 
         <AuditProgress
+          id={audit.id}
           url={audit.url}
           status={audit.status}
           stage={audit.stage}
