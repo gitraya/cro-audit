@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, ShieldAlert } from "lucide-react";
 type Phase = "idle" | "submitting" | "failed";
 
 export function AuditSubmit() {
@@ -47,81 +48,74 @@ export function AuditSubmit() {
     setErrorMessage(null);
   };
 
-  if (phase === "failed") {
-    return (
-      <StatusCard
-        tone="error"
-        title="Audit failed"
-        message={
-          errorMessage ?? "Something went wrong while running the audit."
-        }
-      >
-        <div className="mt-5 flex flex-wrap gap-3">
+  const submitting = phase === "submitting";
+  const failed = phase === "failed";
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-grow">
+          <input
+            required
+            type="url"
+            name="url"
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            disabled={submitting}
+            placeholder="https://example.com"
+            className="w-full bg-white border border-zinc-200 rounded px-4 py-3.5 text-sm text-zinc-900 focus:outline-hidden focus:border-zinc-400 font-sans disabled:opacity-75"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={submitting || !url.trim()}
+          className="inline-flex items-center justify-center bg-zinc-950 hover:bg-zinc-900 text-white font-medium text-sm px-6 py-3.5 rounded shadow-sm hover:shadow transition duration-150 cursor-pointer disabled:opacity-50"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin text-zinc-400" />
+              Running...
+            </>
+          ) : (
+            "Run audit"
+          )}
+        </button>
+      </div>
+
+      {submitting ? (
+        <div className="mt-4 text-xs font-mono text-zinc-500 flex items-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+          <span>
+            Analyzing{" "}
+            <span className="text-zinc-800 font-medium">{url}</span> with
+            Gemini, extracting brand elements, and building replica...
+          </span>
+        </div>
+      ) : null}
+
+      {failed ? (
+        <div className="bg-red-50 border border-red-100 text-red-800 text-xs p-4 rounded-md flex items-start justify-between gap-3 mt-4">
+          <div className="flex items-start space-x-2">
+            <ShieldAlert className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <span>
+              {errorMessage ??
+                "Something went wrong while running the audit."}
+            </span>
+          </div>
           <button
+            type="button"
             onClick={reset}
-            className="min-h-11 bg-neutral-950 px-5 text-sm font-medium text-white"
+            className="shrink-0 font-medium underline underline-offset-2 cursor-pointer"
           >
             Try again
           </button>
         </div>
-      </StatusCard>
-    );
-  }
+      ) : null}
 
-  const submitting = phase === "submitting";
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-5">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <input
-          required
-          type="url"
-          name="url"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          disabled={submitting}
-          placeholder="https://example.com"
-          className="min-h-11 flex-1 border border-neutral-300 px-3 py-2 disabled:bg-neutral-100"
-        />
-        <button
-          type="submit"
-          disabled={submitting}
-          className={`min-h-11 bg-neutral-950 px-5 text-sm font-medium text-white disabled:opacity-60 ${submitting ? "" : "cursor-pointer"}`}
-        >
-          {submitting ? "Starting…" : "Run audit"}
-        </button>
-      </div>
-      <p className="mt-3 text-sm text-neutral-500">
+      <p className="text-[13px] text-zinc-500 mt-5 leading-relaxed font-normal">
         We scrape the homepage, ground findings in CRO principles, and generate
         a brand-matched revision.
       </p>
     </form>
-  );
-}
-
-function StatusCard({
-  tone,
-  title,
-  message,
-  children,
-}: {
-  tone: "error" | "warning";
-  title: string;
-  message: string;
-  children?: React.ReactNode;
-}) {
-  const toneClasses =
-    tone === "error"
-      ? "border-red-200 bg-red-50"
-      : "border-amber-200 bg-amber-50";
-  const titleColor = tone === "error" ? "text-red-800" : "text-amber-900";
-  const bodyColor = tone === "error" ? "text-red-700" : "text-amber-900";
-
-  return (
-    <div className={`mt-5 border ${toneClasses} p-5`}>
-      <h3 className={`text-base font-semibold ${titleColor}`}>{title}</h3>
-      <p className={`mt-2 text-sm leading-6 ${bodyColor}`}>{message}</p>
-      {children}
-    </div>
   );
 }

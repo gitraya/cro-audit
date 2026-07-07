@@ -1,5 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  ArrowLeft,
+  Monitor,
+  CheckCircle,
+  AlertTriangle,
+  ShieldAlert,
+} from "lucide-react";
 import { AuditProgress } from "./audit-progress";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { BrandTokens, LayoutHints } from "@/lib/brand/extraction";
@@ -25,10 +32,10 @@ type AppliedChange = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  failed: "border-red-200 bg-red-50 text-red-700",
-  queued: "border-amber-200 bg-amber-50 text-amber-800",
-  running: "border-amber-200 bg-amber-50 text-amber-800",
+  completed: "bg-emerald-50 text-emerald-700 border-emerald-100/80",
+  failed: "bg-red-50 text-red-700 border-red-100",
+  queued: "bg-amber-50 text-amber-700 border-amber-100",
+  running: "bg-amber-50 text-amber-700 border-amber-100",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -70,24 +77,34 @@ export default async function AuditPage({ params }: AuditPageProps) {
       : "No findings were recorded for this audit.";
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-6 py-12 text-neutral-950">
-      <div className="mx-auto w-full max-w-6xl">
-        <Link
-          href="/dashboard"
-          className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
-        >
-          ← Back to dashboard
-        </Link>
+    <main className="min-h-screen bg-[#fafafa] text-zinc-950 font-sans pb-24">
+      {/* Upper header color bar */}
+      <div className="w-full h-1.5 bg-emerald-500" />
 
-        <header className="mt-6">
-          <StatusBadge status={audit.status} stage={audit.stage} />
-          <h1 className="mt-3 break-words text-3xl font-semibold tracking-tight">
+      <div className="max-w-7xl mx-auto px-6 md:px-12 py-12">
+        {/* Header Back Button & Meta */}
+        <div className="border-b border-zinc-200/80 pb-8 mb-12">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center text-xs font-mono text-zinc-500 hover:text-zinc-900 mb-6 transition duration-150 group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-1 text-zinc-400 group-hover:text-zinc-900 transition duration-150" />
+            Back to dashboard
+          </Link>
+
+          <div className="flex items-center space-x-2.5 mb-2">
+            <StatusBadge status={audit.status} stage={audit.stage} />
+            <span className="text-xs font-mono text-zinc-400">
+              Audit #{String(audit.id).slice(0, 8)}
+            </span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 break-all">
             {audit.url}
           </h1>
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="text-xs text-zinc-400 mt-2 font-mono">
             Created {new Date(audit.created_at).toLocaleString()}
           </p>
-        </header>
+        </div>
 
         <AuditProgress
           url={audit.url}
@@ -96,123 +113,175 @@ export default async function AuditPage({ params }: AuditPageProps) {
         />
 
         {isFailed ? (
-          <div className="mt-8 border border-red-200 bg-red-50 p-5">
-            <h2 className="text-base font-semibold text-red-800">
-              This audit failed
-            </h2>
-            <p
-              className="mt-2 text-sm leading-6 text-red-700"
-              style={{ wordBreak: "break-word" }}
-            >
-              {audit.error_message ??
-                "Something went wrong while running the audit."}
-            </p>
+          <div className="bg-red-50 border border-red-100 rounded-lg p-5 mb-12 flex items-start space-x-2">
+            <ShieldAlert className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <h2 className="text-sm font-bold text-red-800">
+                This audit failed
+              </h2>
+              <p
+                className="mt-1 text-sm leading-6 text-red-700"
+                style={{ wordBreak: "break-word" }}
+              >
+                {audit.error_message ??
+                  "Something went wrong while running the audit."}
+              </p>
+            </div>
           </div>
         ) : null}
 
-        <section className="mt-10">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold">Findings</h2>
-            {findings.length ? (
-              <span className="text-sm text-neutral-500">
-                {findings.length} {findings.length === 1 ? "issue" : "issues"}
-              </span>
-            ) : null}
-          </div>
+        {/* GENERATED HOMEPAGE — full width */}
+        <div className="mb-12">
+          <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-6 pb-2 border-b border-zinc-100">
+            Generated homepage
+          </h2>
 
-          {findings.length ? (
-            <ul className="mt-4 space-y-4">
-              {findings.map((finding, index) => (
-                <li
-                  key={index}
-                  className="border border-neutral-200 bg-white p-5"
-                >
-                  <p className="font-medium leading-6 text-neutral-950">
-                    {finding.observation}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-neutral-600">
-                    <span className="font-medium text-emerald-700">Fix · </span>
-                    {finding.solution}
-                  </p>
-                  <div className="mt-4">
-                    <span className="inline-flex items-center gap-1.5 border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-600">
-                      <span className="font-medium text-neutral-900">
-                        {finding.principle}
-                      </span>
-                      <span className="text-neutral-400">·</span>
-                      <span>{finding.source_book}</span>
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-4 border border-dashed border-neutral-300 bg-white px-5 py-10 text-center">
-              <p className="text-sm text-neutral-500">{findingsEmptyMessage}</p>
-            </div>
-          )}
-        </section>
-
-        <section className="mt-12">
-          <h2 className="text-lg font-semibold">Generated homepage</h2>
           {audit.generated_html ? (
-            <iframe
-              title={`Generated homepage for ${audit.url}`}
-              sandbox=""
-              srcDoc={audit.generated_html}
-              className="mt-4 h-[640px] w-full border border-neutral-200 bg-white"
-            />
+            <div className="border border-zinc-200 rounded-lg overflow-hidden shadow-md bg-white">
+              {/* Browser bar */}
+              <div className="bg-zinc-100 border-b border-zinc-200 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  <span className="w-3 h-3 rounded-full bg-red-400 block" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-400 block" />
+                  <span className="w-3 h-3 rounded-full bg-green-400 block" />
+                </div>
+                <div className="bg-white border border-zinc-200/80 rounded px-3 py-1 text-center font-mono text-xs text-zinc-400 flex items-center justify-center space-x-1 w-2/3 md:w-1/2">
+                  <span className="text-zinc-300">https://</span>
+                  <span className="text-zinc-700 truncate">
+                    {audit.url.replace(/https?:\/\//, "")}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 shrink-0">
+                  <Monitor className="w-4 h-4 text-zinc-400" />
+                </div>
+              </div>
+              <iframe
+                title={`Generated homepage for ${audit.url}`}
+                sandbox=""
+                srcDoc={audit.generated_html}
+                className="h-[calc(100vh-120px)] w-full bg-white block"
+              />
+            </div>
           ) : (
-            <div className="mt-4 border border-dashed border-neutral-300 bg-white px-5 py-10 text-center">
-              <p className="text-sm text-neutral-500">
+            <div className="border border-dashed border-zinc-300 bg-white rounded-lg px-5 py-10 text-center">
+              <p className="text-sm text-zinc-500 font-mono">
                 {isPending
                   ? "The brand-matched homepage will appear here when generation finishes."
                   : "No homepage was generated for this audit."}
               </p>
             </div>
           )}
+        </div>
 
-          {appliedChanges.length ? (
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-neutral-900">
-                Applied changes
-              </h3>
-              <p className="mt-1 text-sm text-neutral-500">
-                What changed on the generated page, and the principle behind
-                each.
-              </p>
-              <ul className="mt-4 space-y-3">
-                {appliedChanges.map((applied, index) => (
-                  <li
-                    key={index}
-                    className="border border-neutral-200 bg-white p-4"
-                  >
-                    <p className="text-sm leading-6 text-neutral-800">
-                      {applied.change}
-                    </p>
-                    <div className="mt-3">
-                      <span className="inline-flex items-center gap-1.5 border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-600">
-                        <span className="font-medium text-neutral-900">
-                          {applied.finding_principle}
+        {/* Audit Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          {/* LEFT: Findings, Generated homepage, Applied changes */}
+          <div className="lg:col-span-7 space-y-12">
+            {/* FINDINGS */}
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-6 pb-2 border-b border-zinc-100 flex items-baseline justify-between">
+                Findings
+                {findings.length ? (
+                  <span className="text-xs font-mono font-normal text-zinc-400">
+                    {findings.length}{" "}
+                    {findings.length === 1 ? "issue" : "issues"}
+                  </span>
+                ) : null}
+              </h2>
+
+              {findings.length ? (
+                <div className="space-y-6">
+                  {findings.map((finding, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white border border-zinc-200 rounded-lg p-6 shadow-xs"
+                    >
+                      <div className="flex items-start space-x-3">
+                        <span className="w-6 h-6 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center font-mono text-xs font-bold text-zinc-500 shrink-0 select-none">
+                          {idx + 1}
                         </span>
-                        <span className="text-neutral-400">·</span>
-                        <span>{applied.source_book}</span>
-                      </span>
+                        <div className="space-y-3 min-w-0">
+                          <p className="text-[14px] font-normal text-zinc-800 leading-relaxed">
+                            {finding.observation}
+                          </p>
+                          <div className="bg-zinc-50/70 border-l-2 border-emerald-500 p-3 rounded-r text-xs text-zinc-600 leading-relaxed">
+                            <strong className="text-zinc-900 block mb-1">
+                              Recommended Fix:
+                            </strong>
+                            {finding.solution}
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {[finding.principle, finding.source_book]
+                              .filter(Boolean)
+                              .map((tag, tIdx) => (
+                                <span
+                                  key={tIdx}
+                                  className="inline-flex items-center rounded-sm bg-zinc-50 px-2 py-0.5 text-[10px] font-mono text-zinc-500 border border-zinc-200"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+              ) : (
+                <div className="border border-dashed border-zinc-300 bg-white rounded-lg px-5 py-10 text-center">
+                  <p className="text-sm text-zinc-500 font-mono">
+                    {findingsEmptyMessage}
+                  </p>
+                </div>
+              )}
             </div>
-          ) : null}
-        </section>
 
-        <section className="mt-12 grid items-start gap-6 lg:grid-cols-2">
-          <BrandTokensPanel tokens={audit.brand_tokens as BrandTokens | null} />
-          <PageSpeedPanel
-            signals={audit.pagespeed_data as PageSpeedSignals | null}
-          />
-          <LayoutHintsPanel hints={audit.layout_hints as LayoutHints | null} />
-        </section>
+            {/* APPLIED CHANGES */}
+            {appliedChanges.length ? (
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-6 pb-2 border-b border-zinc-100">
+                  Applied changes
+                </h2>
+                <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-xs space-y-4">
+                  {appliedChanges.map((change, cIdx) => (
+                    <div
+                      key={cIdx}
+                      className="flex items-start space-x-3 border-b border-zinc-100 last:border-b-0 pb-4 last:pb-0"
+                    >
+                      <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-zinc-700 leading-relaxed">
+                          {change.change}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {[change.finding_principle, change.source_book]
+                            .filter(Boolean)
+                            .map((tag, tIdx) => (
+                              <span
+                                key={tIdx}
+                                className="inline-flex items-center rounded-sm bg-zinc-50 px-1.5 py-0.5 text-[9px] font-mono text-zinc-500 border border-zinc-100"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* RIGHT: Brand tokens, PageSpeed, Layout hints */}
+          <div className="lg:col-span-5 space-y-8">
+            <BrandTokensPanel tokens={audit.brand_tokens as BrandTokens | null} />
+            <PageSpeedPanel
+              signals={audit.pagespeed_data as PageSpeedSignals | null}
+            />
+            <LayoutHintsPanel hints={audit.layout_hints as LayoutHints | null} />
+          </div>
+        </div>
       </div>
     </main>
   );
@@ -226,14 +295,13 @@ function StatusBadge({
   stage: string | null;
 }) {
   const styles =
-    STATUS_STYLES[status] ??
-    "border-neutral-200 bg-neutral-100 text-neutral-600";
+    STATUS_STYLES[status] ?? "bg-zinc-50 text-zinc-600 border-zinc-200";
   const label = STATUS_LABELS[status] ?? status;
   const showStage = status !== "completed" && status !== "failed" && stage;
 
   return (
     <span
-      className={`inline-flex items-center gap-2 border px-2.5 py-1 text-xs font-medium ${styles}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider border ${styles}`}
     >
       {label}
       {showStage ? (
@@ -245,13 +313,15 @@ function StatusBadge({
   );
 }
 
-const PANEL_LABEL =
-  "text-xs font-medium uppercase tracking-wide text-neutral-500";
+const SECTION_HEADING =
+  "text-sm font-bold uppercase tracking-wider text-zinc-900 mb-5 border-b border-zinc-100 pb-2";
+const SUB_HEADING =
+  "text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2";
 
 const RATING_STYLES: Record<string, string> = {
-  good: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  "needs-improvement": "border-amber-200 bg-amber-50 text-amber-800",
-  poor: "border-red-200 bg-red-50 text-red-700",
+  good: "text-emerald-700 bg-emerald-50 border-emerald-100",
+  "needs-improvement": "text-amber-700 bg-amber-50 border-amber-100",
+  poor: "text-red-700 bg-red-50 border-red-100",
 };
 
 function PanelShell({
@@ -262,15 +332,15 @@ function PanelShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0 border border-neutral-200 bg-white p-5">
-      <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
+    <div className="bg-white border border-zinc-200 rounded-lg p-6 shadow-xs">
+      <h2 className={SECTION_HEADING}>{title}</h2>
       {children}
     </div>
   );
 }
 
 function EmptyNote({ children }: { children: React.ReactNode }) {
-  return <p className="mt-3 text-sm text-neutral-500">{children}</p>;
+  return <p className="text-sm text-zinc-500 font-mono">{children}</p>;
 }
 
 function BrandTokensPanel({ tokens }: { tokens: BrandTokens | null }) {
@@ -283,149 +353,144 @@ function BrandTokensPanel({ tokens }: { tokens: BrandTokens | null }) {
   }
 
   const { colors, font, voice } = tokens;
-  const fontStack = [font?.primary, ...(font?.fallbacks ?? [])]
-    .filter(Boolean)
-    .join(", ");
 
   return (
     <PanelShell title="Brand tokens">
-      <div className="mt-4 space-y-5">
-        <div>
-          <p className={PANEL_LABEL}>Colors</p>
-          {colors?.length ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {colors.map((color) => (
-                <span
-                  key={color}
-                  className="inline-flex items-center gap-2 border border-neutral-200 py-1 pl-1 pr-2"
-                >
-                  <span
-                    className="h-6 w-6 border border-neutral-300"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="font-mono text-xs text-neutral-700">
-                    {color}
-                  </span>
-                </span>
-              ))}
-            </div>
-          ) : (
-            <EmptyNote>No brand colors detected.</EmptyNote>
-          )}
-        </div>
-
-        <div>
-          <p className={PANEL_LABEL}>Typography</p>
-          {font?.primary ? (
-            <>
-              <p
-                className="mt-1 text-xl text-neutral-900"
-                style={{ fontFamily: fontStack }}
+      {/* Colors */}
+      <div className="mb-6">
+        <h4 className={`${SUB_HEADING} mb-3`}>Colors</h4>
+        {colors?.length ? (
+          <div className="grid grid-cols-1 gap-2.5">
+            {colors.map((color) => (
+              <div
+                key={color}
+                className="flex items-center space-x-3 bg-zinc-50 border border-zinc-200/50 p-2.5 rounded"
               >
-                {font.primary}
-              </p>
-              {font.fallbacks?.length ? (
-                <p className="mt-1 text-xs text-neutral-500">
-                  Fallbacks: {font.fallbacks.join(", ")}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <EmptyNote>No primary font detected.</EmptyNote>
-          )}
-        </div>
+                <span
+                  className="w-5 h-5 rounded-full border border-zinc-300 block shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-[11px] text-zinc-500 font-mono">
+                  {color}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyNote>No brand colors detected.</EmptyNote>
+        )}
+      </div>
 
-        <div>
-          <p className={PANEL_LABEL}>Voice</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {voice?.tone ? (
-              <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
-                Tone:{" "}
-                <span className="font-medium text-neutral-900">
-                  {voice.tone}
-                </span>
-              </span>
-            ) : null}
-            {voice?.formality ? (
-              <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
-                Formality:{" "}
-                <span className="font-medium text-neutral-900 capitalize">
-                  {voice.formality}
-                </span>
+      {/* Typography */}
+      <div className="mb-6">
+        <h4 className={SUB_HEADING}>Typography</h4>
+        {font?.primary ? (
+          <div className="bg-zinc-50 border border-zinc-200/50 p-3 rounded">
+            <span className="text-[14px] font-bold text-zinc-900 block font-mono">
+              {font.primary}
+            </span>
+            {font.fallbacks?.length ? (
+              <span className="text-[10px] text-zinc-400 block mt-1 leading-relaxed">
+                Fallbacks: {font.fallbacks.join(", ")}
               </span>
             ) : null}
           </div>
-          {voice?.phrases?.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {voice.phrases.map((phrase, index) => (
-                <span
-                  key={index}
-                  className="border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600"
-                >
-                  “{phrase}”
+        ) : (
+          <EmptyNote>No primary font detected.</EmptyNote>
+        )}
+      </div>
+
+      {/* Voice */}
+      <div>
+        <h4 className={SUB_HEADING}>Brand Voice</h4>
+        {voice?.tone || voice?.formality || voice?.phrases?.length ? (
+          <div className="space-y-2 text-xs text-zinc-600 leading-relaxed font-mono bg-zinc-50 border border-zinc-200/50 p-3 rounded">
+            {voice?.tone ? (
+              <p className="font-semibold text-zinc-800 capitalize">
+                {voice.tone}
+              </p>
+            ) : null}
+            {voice?.formality ? (
+              <p className="capitalize">{voice.formality}</p>
+            ) : null}
+            {voice?.phrases?.length ? (
+              <div className="pt-2 border-t border-zinc-200/50 mt-2">
+                <span className="text-[9px] text-zinc-400 font-bold block uppercase mb-1">
+                  Key phrases:
                 </span>
-              ))}
-            </div>
-          ) : null}
-          {!voice?.tone && !voice?.formality && !voice?.phrases?.length ? (
-            <EmptyNote>No voice signals detected.</EmptyNote>
-          ) : null}
-        </div>
+                <ul className="list-disc list-inside space-y-1 text-[11px] text-zinc-500">
+                  {voice.phrases.map((phrase, idx) => (
+                    <li key={idx} className="truncate">
+                      {phrase}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <EmptyNote>No voice signals detected.</EmptyNote>
+        )}
       </div>
     </PanelShell>
   );
 }
 
-function LayoutHintsPanel({ hints }: { hints: LayoutHints | null }) {
-  if (!hints) {
-    return (
-      <PanelShell title="Layout hints">
-        <EmptyNote>Not extracted yet.</EmptyNote>
-      </PanelShell>
-    );
-  }
+function ScoreMeter({
+  label,
+  score,
+}: {
+  label: string;
+  score: number | null;
+}) {
+  const palette =
+    score == null
+      ? { text: "text-zinc-400", bg: "bg-zinc-50", border: "border-zinc-200", stroke: "#a1a1aa" }
+      : score >= 90
+        ? { text: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", stroke: "#10b981" }
+        : score >= 50
+          ? { text: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", stroke: "#f59e0b" }
+          : { text: "text-red-600", bg: "bg-red-50", border: "border-red-100", stroke: "#ef4444" };
 
-  const swatch = (label: string, color: string | null) => (
-    <div>
-      <p className={PANEL_LABEL}>{label}</p>
-      {color ? (
-        <span className="mt-2 inline-flex items-center gap-2 border border-neutral-200 py-1 pl-1 pr-2">
-          <span
-            className="h-6 w-6 border border-neutral-300"
-            style={{ backgroundColor: color }}
-          />
-          <span className="font-mono text-xs text-neutral-700">{color}</span>
-        </span>
-      ) : (
-        <p className="mt-1 text-sm text-neutral-500">Not detected.</p>
-      )}
-    </div>
-  );
+  const circumference = 2 * Math.PI * 28;
+  const offset = circumference * (1 - (score ?? 0) / 100);
 
   return (
-    <PanelShell title="Layout hints">
-      <div className="mt-4 space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-          {swatch("Background", hints.background_color)}
-          {swatch("Text", hints.text_color)}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
-            Theme:{" "}
-            <span className="font-medium text-neutral-900">
-              {hints.is_dark_theme ? "Dark" : "Light"}
-            </span>
-          </span>
-          <span className="border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-700">
-            Hero alignment:{" "}
-            <span className="font-medium text-neutral-900 capitalize">
-              {hints.hero_alignment}
-            </span>
-          </span>
-        </div>
+    <div
+      className={`p-4 border rounded-lg flex flex-col items-center justify-center text-center ${palette.bg} ${palette.border}`}
+    >
+      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-3">
+        {label}
+      </span>
+      <div className="relative w-16 h-16 flex items-center justify-center">
+        <svg className="w-full h-full -rotate-90">
+          <circle
+            cx="32"
+            cy="32"
+            r="28"
+            className="text-zinc-200"
+            strokeWidth="5"
+            fill="none"
+            stroke="currentColor"
+          />
+          <circle
+            cx="32"
+            cy="32"
+            r="28"
+            strokeWidth="5"
+            fill="none"
+            stroke={palette.stroke}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+          />
+        </svg>
+        <span
+          className={`absolute text-base font-extrabold font-mono ${palette.text}`}
+        >
+          {score ?? "—"}
+        </span>
       </div>
-    </PanelShell>
+    </div>
   );
 }
 
@@ -450,96 +515,129 @@ function PageSpeedPanel({ signals }: { signals: PageSpeedSignals | null }) {
 
   return (
     <PanelShell title="PageSpeed data">
-      <div className="mt-4 space-y-5">
-        <div className="grid grid-cols-2 gap-3">
-          <ScoreStat label="Performance" score={scores.performance} />
-          <ScoreStat label="Accessibility" score={scores.accessibility} />
-        </div>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <ScoreMeter label="Performance" score={scores.performance} />
+        <ScoreMeter label="Accessibility" score={scores.accessibility} />
+      </div>
 
-        <div>
-          <p className={PANEL_LABEL}>Core Web Vitals</p>
-          <div className="mt-2 grid grid-cols-3 gap-3">
+      {/* Core Web Vitals */}
+      <div className="mb-6">
+        <h4 className={SUB_HEADING}>Core Web Vitals</h4>
+        <div className="border border-zinc-200 rounded-md overflow-hidden text-xs">
+          <div className="grid grid-cols-3 bg-zinc-50 border-b border-zinc-200 font-bold p-2 text-zinc-500 text-[10px] uppercase">
+            <div>Metric</div>
+            <div className="text-right">Value</div>
+            <div className="text-right">Rating</div>
+          </div>
+          <div className="divide-y divide-zinc-100">
             {vitals.map((vital) => (
-              <div
-                key={vital.label}
-                className="border border-neutral-200 p-3 text-center"
-              >
-                <p className="text-xs font-medium text-neutral-500">
-                  {vital.label}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-neutral-900">
+              <div key={vital.label} className="grid grid-cols-3 p-2.5">
+                <div className="font-semibold text-zinc-800">{vital.label}</div>
+                <div className="text-right font-mono text-zinc-900">
                   {vital.signal.displayValue ?? "—"}
-                </p>
-                {vital.signal.rating ? (
-                  <span
-                    className={`mt-2 inline-block border px-1.5 py-0.5 text-[10px] font-medium capitalize ${
-                      RATING_STYLES[vital.signal.rating] ??
-                      "border-neutral-200 bg-neutral-50 text-neutral-600"
-                    }`}
-                  >
-                    {vital.signal.rating.replace(/-/g, " ")}
-                  </span>
-                ) : null}
+                </div>
+                <div className="text-right">
+                  {vital.signal.rating ? (
+                    <span
+                      className={`inline-block px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold font-mono capitalize border ${
+                        RATING_STYLES[vital.signal.rating] ??
+                        "text-zinc-600 bg-zinc-50 border-zinc-200"
+                      }`}
+                    >
+                      {vital.signal.rating.replace(/-/g, " ")}
+                    </span>
+                  ) : (
+                    <span className="text-zinc-400">—</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
-
-        {topIssues.length ? (
-          <div>
-            <p className={PANEL_LABEL}>Top issues</p>
-            <ul className="mt-2 space-y-2">
-              {topIssues.map((issue) => (
-                <li
-                  key={issue.id}
-                  className="border border-neutral-200 px-3 py-2 text-sm text-neutral-700"
-                >
-                  {issue.title}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
+
+      {/* Top Issues */}
+      {topIssues.length ? (
+        <div>
+          <h4 className={SUB_HEADING}>Top Issues</h4>
+          <ul className="space-y-2">
+            {topIssues.map((issue) => (
+              <li
+                key={issue.id}
+                className="flex items-start text-xs text-zinc-600 bg-zinc-50 border border-zinc-200 p-2.5 rounded"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5 mr-2" />
+                <span>{issue.title}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </PanelShell>
   );
 }
 
-function ScoreStat({ label, score }: { label: string; score: number | null }) {
-  const color =
-    score == null
-      ? "text-neutral-400"
-      : score >= 90
-        ? "text-emerald-600"
-        : score >= 50
-          ? "text-amber-600"
-          : "text-red-600";
-  const barColor =
-    score == null
-      ? "bg-neutral-200"
-      : score >= 90
-        ? "bg-emerald-500"
-        : score >= 50
-          ? "bg-amber-500"
-          : "bg-red-500";
+function LayoutHintsPanel({ hints }: { hints: LayoutHints | null }) {
+  if (!hints) {
+    return (
+      <PanelShell title="Layout hints">
+        <EmptyNote>Not extracted yet.</EmptyNote>
+      </PanelShell>
+    );
+  }
 
   return (
-    <div className="border border-neutral-200 p-3">
-      <p className="text-xs font-medium text-neutral-500">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${color}`}>
-        {score ?? "—"}
-        {score != null ? (
-          <span className="ml-0.5 text-sm font-normal text-neutral-400">
-            /100
+    <PanelShell title="Layout hints">
+      <div className="space-y-3.5 text-xs text-zinc-700">
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-zinc-500">Theme Preference</span>
+          <span className="font-mono text-zinc-800 font-bold">
+            {hints.is_dark_theme ? "Dark" : "Light"}
           </span>
-        ) : null}
-      </p>
-      <div className="mt-2 h-1 w-full bg-neutral-100">
-        <div
-          className={`h-1 ${barColor}`}
-          style={{ width: `${score ?? 0}%` }}
-        />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-zinc-500">
+            Background Preference
+          </span>
+          <div className="flex items-center space-x-1.5 font-mono text-zinc-800 font-bold">
+            {hints.background_color ? (
+              <>
+                <span
+                  className="w-3.5 h-3.5 border border-zinc-200 block"
+                  style={{ backgroundColor: hints.background_color }}
+                />
+                <span>{hints.background_color}</span>
+              </>
+            ) : (
+              <span className="text-zinc-400">—</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-zinc-500">Text Preference</span>
+          <div className="flex items-center space-x-1.5 font-mono text-zinc-800 font-bold">
+            {hints.text_color ? (
+              <>
+                <span
+                  className="w-3.5 h-3.5 border border-zinc-200 block"
+                  style={{ backgroundColor: hints.text_color }}
+                />
+                <span>{hints.text_color}</span>
+              </>
+            ) : (
+              <span className="text-zinc-400">—</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-zinc-500">
+            Hero Layout Alignment
+          </span>
+          <span className="font-mono text-zinc-800 font-bold capitalize">
+            {hints.hero_alignment}
+          </span>
+        </div>
       </div>
-    </div>
+    </PanelShell>
   );
 }
