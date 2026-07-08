@@ -73,7 +73,9 @@ export function AuditDetail({ initialAudit }: { initialAudit: AuditRow }) {
   // Keep the freshest `refresh` in a ref so the polling effect below doesn't
   // have to tear down and restart every time the callback identity changes.
   const refreshRef = useRef(refresh);
-  refreshRef.current = refresh;
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
 
   useEffect(() => {
     if (!isPending) return;
