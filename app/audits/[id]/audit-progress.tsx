@@ -1,77 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { STAGES } from "@/lib/cro-audit/stages";
 
 type AuditStatus = "queued" | "running" | "completed" | "failed";
 type Stage = (typeof STAGES)[number]["key"] | "done";
 
-// Safety-net poll interval. Realtime does the real work; this only covers the
-// rare case where a Realtime event is dropped or the socket briefly disconnects.
-const FALLBACK_POLL_MS = 10_000;
-const TIMEOUT_MS = 3 * 60 * 1_000;
-
 type AuditProgressProps = {
-  id: string;
   url: string;
   status: AuditStatus;
   stage: Stage | null;
+  timedOut: boolean;
+  onCheckAgain: () => void;
 };
 
-export function AuditProgress({ id, url, status, stage }: AuditProgressProps) {
-  const router = useRouter();
-  const [timedOut, setTimedOut] = useState(false);
+export function AuditProgress({
+  url,
+  status,
+  stage,
+  timedOut,
+  onCheckAgain,
+}: AuditProgressProps) {
   const isPending = status === "queued" || status === "running";
-
-  useEffect(() => {
-    if (!isPending) return;
-
-    const supabase = createClient();
-    let cancelled = false;
-
-    // Subscribe to UPDATEs on this specific audit row. The worker writes each
-    // pipeline stage as it finishes; every write pushes an event here, and we
-    // re-run the server component to render the latest data. This replaces the
-    // old fixed-interval poll — updates are now event-driven and near-instant.
-    const channel = supabase
-      .channel(`audit:${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "audits",
-          filter: `id=eq.${id}`,
-        },
-        () => router.refresh(),
-      )
-      .subscribe((subscriptionStatus) => {
-        // Reconcile once the channel is live, in case the worker wrote an update
-        // between the server render and the subscription being established.
-        if (subscriptionStatus === "SUBSCRIBED" && !cancelled) {
-          router.refresh();
-        }
-      });
-
-    // Slow fallback poll so progress can't stall if a Realtime event is missed.
-    const interval = setInterval(() => {
-      router.refresh();
-    }, FALLBACK_POLL_MS);
-
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      setTimedOut(true);
-    }, TIMEOUT_MS);
-
-    return () => {
-      cancelled = true;
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [isPending, id, router]);
 
   if (!isPending) {
     return null;
@@ -102,10 +51,7 @@ export function AuditProgress({ id, url, status, stage }: AuditProgressProps) {
           background —{" "}
           <button
             type="button"
-            onClick={() => {
-              setTimedOut(false);
-              router.refresh();
-            }}
+            onClick={onCheckAgain}
             className="font-medium text-emerald-700 underline underline-offset-2 cursor-pointer"
           >
             check again
