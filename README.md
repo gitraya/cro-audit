@@ -52,7 +52,7 @@ URL
   → Persist
 ```
 
-The submit endpoint inserts the audit row and returns `{ auditId }` immediately; a separate Render background worker then keeps running the pipeline after the response. Each step writes a `stage` column as it completes, and the audit detail page re-fetches its own server data every 2s, so findings, the generated homepage, brand tokens, layout hints, and PageSpeed signals appear progressively. The scraper returns transient in-memory page data; PageSpeed Insights runs in parallel with scraping because it is slow and independent.
+The submit endpoint inserts the audit row and returns `{ auditId }` immediately; a separate standalone background worker (`npm run worker`) then keeps running the pipeline after the response. Each step writes a `stage` column as it completes, and the audit detail page re-fetches its own server data every 2s, so findings, the generated homepage, brand tokens, layout hints, and PageSpeed signals appear progressively. The scraper returns transient in-memory page data; PageSpeed Insights runs in parallel with scraping because it is slow and independent.
 
 > **Note (CRO pipeline):** Homepage replication is best-effort — if generation fails the audit still completes with its validated findings rather than discarding them. Any stage that throws marks the audit `failed` with a reason, and the background task never hangs the request.
 
@@ -174,7 +174,7 @@ AI assistance was used for implementation support, debugging extraction edge cas
 - PageSpeed runs concurrently with scraping and is cached per URL to avoid repeated slow external calls.
 - Findings are grounded: retrieval fans out per source book (top-N each) for multi-source breadth, and a validation pass drops any finding whose principle is not in the retrieved set.
 - Audit generation is deterministic (temperature 0); homepage replication is intentionally creative (temperature 0.4).
-- The pipeline runs in a separate Render background worker after the HTTP response, writing a `stage` column the UI polls; a replication failure never discards validated findings.
+- The pipeline runs in a separate standalone background worker after the HTTP response, writing a `stage` column the UI polls; a replication failure never discards validated findings.
 - LLM-generated homepage HTML is rendered in a sandboxed iframe, never injected into the app DOM.
 
 ---

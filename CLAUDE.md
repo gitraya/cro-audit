@@ -23,6 +23,7 @@ node --test --experimental-strip-types tests/brand-extraction.test.ts
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SERVICE_ROLE_KEY  # server-only; used by the background audit pipeline
 GEMINI_API_KEY
 PAGESPEED_API_KEY
 SUPABASE_DB_URL          # only needed for db:migrate and seed:principles
