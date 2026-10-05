@@ -25,7 +25,7 @@ ENV NODE_OPTIONS=--experimental-strip-types
 
 # Bring in the installed deps and the source the worker executes at runtime.
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY scripts ./scripts
 COPY lib ./lib
 
